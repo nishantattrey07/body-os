@@ -5,32 +5,50 @@ import { MorningCheckIn } from "@/components/dashboard/MorningCheckIn";
 import { StatusIndicator } from "@/components/dashboard/StatusIndicator";
 import { BigButton } from "@/components/ui/BigButton";
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+import { useDailyStore } from "@/store/dailyStore";
 
 export default function Home() {
-  const [bootStatus, setBootStatus] = useState<"pending" | "completed">("pending");
-  const [systemMode, setSystemMode] = useState<"optimized" | "saver">("optimized");
-  const [stats, setStats] = useState({ weight: 0, sleep: 0 });
+  const router = useRouter();
+  
+  // Zustand store
+  const { 
+    weight, 
+    sleep, 
+    systemMode, 
+    bootStatus, 
+    proteinTotal, 
+    loading,
+    loadTodayLog, 
+    submitCheckIn,
+    reset 
+  } = useDailyStore();
 
-  const handleMorningCheckIn = (data: { weight: number; sleep: number }) => {
-    setStats(data);
-    
-    // Logic: Sleep < 6h -> Energy Saver Mode
-    if (data.sleep < 6) {
-      setSystemMode("saver");
-    } else {
-      setSystemMode("optimized");
-    }
+  // Load today's log once on mount
+  useEffect(() => {
+    loadTodayLog();
+  }, [loadTodayLog]);
 
-    setBootStatus("completed");
-  };
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  const stats = { weight, sleep };
+
+
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-6 bg-background text-foreground sm:p-12 max-w-md mx-auto relative overflow-hidden">
       
       <AnimatePresence mode="wait">
         {bootStatus === "pending" ? (
-          <MorningCheckIn key="morning" onComplete={handleMorningCheckIn} />
+          <MorningCheckIn key="morning" onComplete={(data) => submitCheckIn(data.weight, data.sleep)} />
         ) : (
           <motion.div 
             key="dashboard"
@@ -40,8 +58,14 @@ export default function Home() {
           >
             {/* Header */}
             <div className="w-full flex justify-between items-center z-10 mb-8 mt-4">
-              <h1 className="text-4xl font-bold uppercase tracking-tighter text-foreground font-heading">
+              <h1 className="text-4xl font-bold uppercase tracking-tighter text-foreground font-heading flex flex-col">
                 Body OS
+                <button 
+                  onClick={reset}
+                  className="text-xs text-zinc-300 font-medium tracking-wide uppercase hover:text-primary transition-colors text-left mt-1"
+                >
+                  Recalibrate
+                </button>
               </h1>
               <StatusIndicator 
                 status={systemMode === "optimized" ? "ready" : "warning"} 
@@ -52,7 +76,7 @@ export default function Home() {
             {/* Core Vitals */}
             <div className="flex-1 flex flex-col items-center justify-center w-full z-10">
               <FuelGauge 
-                current={140} 
+                current={proteinTotal} 
                 target={200} 
                 label="Daily Protein" 
                 unit="g"
@@ -78,14 +102,28 @@ export default function Home() {
               )}
             </div>
 
-            {/* Primary Action */}
-            <div className="w-full z-10 mt-8 mb-8">
-              <BigButton variant="primary" className="mb-4">
-                Log Lunch
+            {/* Nutrition Grid */}
+            <div className="w-full z-10 mt-8 mb-8 space-y-4">
+              <BigButton 
+                variant="primary" 
+                onClick={() => router.push("/nutrition")}
+              >
+                Log Nutrition
               </BigButton>
-              <p className="text-center text-zinc-400 text-sm font-medium">
-                  Next: {systemMode === "optimized" ? "Heavy Push" : "Light Recovery"} at 18:00
-              </p>
+              
+              <BigButton 
+                variant="secondary" 
+                onClick={() => router.push("/workout")}
+                className="bg-zinc-800 text-white hover:bg-zinc-700"
+              >
+                Start Workout
+              </BigButton>
+
+              <div className="mt-4 flex justify-center">
+                  <p className="text-center text-zinc-400 text-sm font-medium">
+                      Next: {systemMode === "optimized" ? "Heavy Push" : "Light Recovery"} at 18:00
+                  </p>
+              </div>
             </div>
           </motion.div>
         )}
