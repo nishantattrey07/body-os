@@ -5,11 +5,10 @@ import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export function WaterTracker() {
+export function WaterTracker({ target = 4000 }: { target?: number }) {
   const [total, setTotal] = useState(0);
   const [tapping, setTapping] = useState(false);
   
-  const TARGET = 4000; // 4L in ml
   const PER_TAP = 250; // 250ml per glass
 
   useEffect(() => {
@@ -41,7 +40,7 @@ export function WaterTracker() {
     }
   };
 
-  const progress = Math.min((total / TARGET) * 100, 100);
+  const progress = Math.min((total / target) * 100, 100);
   const glasses = Math.floor(total / PER_TAP);
 
   return (
@@ -59,7 +58,7 @@ export function WaterTracker() {
         
         <div className="text-right">
           <p className="text-sm opacity-80">Target</p>
-          <p className="text-2xl font-bold">4L</p>
+          <p className="text-2xl font-bold">{(target / 1000).toFixed(1)}L</p>
         </div>
       </div>
 

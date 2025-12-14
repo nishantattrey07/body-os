@@ -2,7 +2,8 @@
 
 import { getUserSettings, updateUserSettings } from "@/app/actions/settings";
 import { BigButton } from "@/components/ui/BigButton";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, LogOut } from "lucide-react";
+import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -117,9 +118,18 @@ export default function SettingsPage() {
       </div>
 
       {/* Save Button */}
-      <BigButton onClick={handleSave} disabled={saving} className="mt-8 mb-8">
+      <BigButton onClick={handleSave} disabled={saving} className="mt-8">
         {saving ? "Saving..." : "Save Targets"}
       </BigButton>
+
+      {/* Logout Button */}
+      <button
+        onClick={() => signOut({ callbackUrl: "/login" })}
+        className="w-full mt-4 mb-8 py-4 rounded-2xl bg-zinc-100 text-zinc-700 font-bold text-lg flex items-center justify-center gap-2 hover:bg-zinc-200 transition-colors"
+      >
+        <LogOut className="w-5 h-5" />
+        Logout
+      </button>
     </div>
   );
 }

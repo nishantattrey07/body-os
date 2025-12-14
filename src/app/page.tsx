@@ -2,13 +2,13 @@
 
 import { getTodayLog } from "@/app/actions/daily-log";
 import { getUserSettings } from "@/app/actions/settings";
+import { ActionCard } from "@/components/dashboard/ActionCard";
 import { MacroGauge } from "@/components/dashboard/MacroGauge";
 import { MorningCheckIn } from "@/components/dashboard/MorningCheckIn";
 import { StatusIndicator } from "@/components/dashboard/StatusIndicator";
 import { WaterTracker } from "@/components/dashboard/WaterTracker";
-import { BigButton } from "@/components/ui/BigButton";
 import { AnimatePresence, motion } from "framer-motion";
-import { Settings } from "lucide-react";
+import { Dumbbell, Settings, TrendingUp, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -161,34 +161,40 @@ export default function Home() {
 
               {/* Water Tracker */}
               <div className="mt-8 w-full">
-                <WaterTracker />
+                <WaterTracker target={settings.waterTarget} />
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="w-full z-10 mt-8 mb-8 space-y-4">
-              <BigButton 
-                variant="primary" 
+            {/* Action Grid */}
+            <div className="w-full z-10 mt-8 mb-8 grid grid-cols-2 gap-4">
+              <ActionCard
+                label="Log Food"
+                sublabel="Track Nutrition"
+                icon={Utensils}
+                color="text-orange-500"
                 onClick={() => router.push("/nutrition")}
-              >
-                Log Nutrition
-              </BigButton>
+                className="h-40"
+              />
               
-              <BigButton 
-                variant="secondary" 
+              <ActionCard
+                label="Workout"
+                sublabel="Start Session"
+                icon={Dumbbell}
+                color="text-zinc-900"
                 onClick={() => router.push("/workout")}
-                className="bg-zinc-800 text-white hover:bg-zinc-700"
-              >
-                Start Workout
-              </BigButton>
+                className="h-40"
+              />
 
-              <BigButton 
-                variant="secondary" 
+              <ActionCard
+                label="Progress"
+                sublabel="View Stats & Trends"
+                icon={TrendingUp}
+                color="text-blue-500"
                 onClick={() => router.push("/progress")}
-                className="bg-blue-600 text-white hover:bg-blue-700"
-              >
-                Track Progress
-              </BigButton>
+                className="col-span-2 h-24"
+                variant="wide"
+                bgColor="bg-blue-50/50" // Subtle tint for variety
+              />
             </div>
           </motion.div>
         )}

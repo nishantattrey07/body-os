@@ -93,22 +93,22 @@ export function MacroGauge({ data }: { data: MacroData }) {
             className="flex flex-col items-center"
           >
             {/* Value Display */}
-            <div className="flex items-baseline">
-              <span className="text-8xl font-bold text-foreground font-heading">
-                {Math.round(current.current)}
-              </span>
-              <span className="text-2xl text-zinc-400 font-heading ml-1 opacity-60">
-                /{current.target}
+            <div className="flex flex-col items-center justify-center">
+              <div className="flex items-baseline">
+                <span className="text-7xl font-bold text-foreground font-heading">
+                  {Math.round(current.current)}
+                </span>
+                <span className="text-2xl font-medium text-zinc-500 font-heading ml-1">
+                  {current.unit}
+                </span>
+              </div>
+              <span className="text-xl text-zinc-400 font-heading -mt-1 opacity-60">
+                / {current.target} {current.unit}
               </span>
             </div>
 
-            {/* Unit */}
-            <span className="text-xl text-zinc-500 font-heading -mt-2">
-              {current.unit}
-            </span>
-
             {/* Label */}
-            <span className="text-xl uppercase tracking-wider text-secondary font-heading mt-2">
+            <span className="text-lg uppercase tracking-wider text-secondary font-heading mt-1">
               {current.label}
             </span>
 
