@@ -37,17 +37,19 @@ model User {
   updatedAt      DateTime        @updatedAt
   
   // Relations
-  accounts       Account[]
-  dailyLogs      DailyLog[]
-  nutritionLogs  NutritionLog[]
-  waterLogs      WaterLog[]
-  workoutLogs    WorkoutLog[]
-  warmupLogs     WarmupLog[]
-  progressPhotos ProgressPhoto[]
-  deadHangLogs   DeadHangLog[]
-  settings       UserSettings?
-  exercises      Exercise[]       // User-owned exercises
-  routines       WorkoutRoutine[] // User-owned routines
+  accounts        Account[]
+  dailyLogs       DailyLog[]
+  nutritionLogs   NutritionLog[]
+  waterLogs       WaterLog[]
+  warmupLogs      WarmupLog[]
+  progressPhotos  ProgressPhoto[]
+  deadHangLogs    DeadHangLog[]
+  settings        UserSettings?
+  exercises       Exercise[]          // User-owned exercises
+  routines        WorkoutRoutine[]    // User-owned routines
+  workoutSessions WorkoutSession[]    // Workout session history
+  inventoryItems  InventoryItem[]     // User-owned inventory items
+  blockers        PhysicalBlocker[]   // Body issues/injuries
 }
 
 model DailyLog {
@@ -94,7 +96,7 @@ model UserSettings {
 
 model InventoryItem {
   id              String         @id @default(uuid())
-  name            String         @unique 
+  name            String          
   icon            String         // Emoji or lucide name
   proteinPerUnit  Float
   carbsPerUnit    Float          @default(0)
@@ -102,10 +104,18 @@ model InventoryItem {
   caloriesPerUnit Float
   volumePerUnit   Float          // e.g. 250ml or 50g
   defaultUnit     String         // "scoop", "g", "ml"
+  costPerUnit     Float          @default(0) // Track budget (e.g. ₹5k/month)
   isActive        Boolean        @default(true)  // For smart disable logic
   maxDailyQty     Float?         // Optional daily limit
   
+  // System vs User-owned (like Exercises)
+  isSystem        Boolean        @default(false)
+  userId          String?
+  user            User?          @relation(fields: [userId], references: [id])
+  
   logs            NutritionLog[]
+  
+  @@unique([name, userId])
 }
 
 model NutritionLog {
@@ -128,6 +138,7 @@ model Exercise {
   defaultSets    Int          @default(3)
   category       String       // Push, Pull, Legs, Core, or custom
   description    String?
+  equipment      String?      // "bodyweight", "dumbbell", "barbell", "cable", "machine"
   
   // System vs User-owned
   isSystem       Boolean      @default(false)
@@ -139,26 +150,14 @@ model Exercise {
   swapExercise   Exercise?         @relation("PainSwap", fields: [swapExerciseId], references: [id])
   parentOf       Exercise[]        @relation("PainSwap")
 
-  workoutLogs    WorkoutLog[]
   routineExercises RoutineExercise[]
+  muscles          ExerciseMuscle[]   // Muscle groups targeted
+  sessionExercises SessionExercise[]  // Session instances
   
   @@unique([name, userId])
 }
 
-model WorkoutLog {
-  id          String   @id @default(uuid())
-  date        DateTime @default(now())
-  
-  exerciseId  String
-  exercise    Exercise @relation(fields: [exerciseId], references: [id])
-  
-  reps        Int
-  weight      Float?
-  painLevel   Int?     // 0-10
-  
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-}
+
 
 // ============================================
 // NEW MODELS FOR BODY OS
@@ -180,6 +179,9 @@ model WarmupLog {
   completed         Boolean         @default(false)
   userId            String
   user              User            @relation(fields: [userId], references: [id])
+  
+  // Link to workout session that used this warmup
+  session           WorkoutSession?
   
   @@unique([userId, warmupChecklistId, date])
 }
@@ -203,6 +205,7 @@ model WorkoutRoutine {
   user        User?             @relation(fields: [userId], references: [id])
   
   exercises   RoutineExercise[]
+  sessions    WorkoutSession[]   // Sessions using this routine
   
   @@unique([name, userId])
 }
@@ -245,4 +248,214 @@ model DailyReview {
   notes       String?
   dailyLogId  String   @unique
   dailyLog    DailyLog @relation(fields: [dailyLogId], references: [id])
+}
+
+// ============================================
+// WORKOUT SESSION TRACKING SYSTEM
+// ============================================
+
+// Reference table for muscle groups (granular anatomy)
+model MuscleGroup {
+  id          String           @id @default(uuid())
+  name        String           @unique // "Upper Chest", "Lats", "Rear Delts", etc.
+  majorRegion String           // "Chest", "Back", "Shoulders", "Arms", "Core", "Legs"
+  exercises   ExerciseMuscle[]
+}
+
+// Join table: Exercise <-> MuscleGroup (many-to-many with isPrimary)
+model ExerciseMuscle {
+  id            String      @id @default(uuid())
+  isPrimary     Boolean     @default(true) // Primary vs Secondary mover
+  
+  exerciseId    String
+  exercise      Exercise    @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  muscleGroupId String
+  muscleGroup   MuscleGroup @relation(fields: [muscleGroupId], references: [id])
+  
+  @@unique([exerciseId, muscleGroupId])
+}
+
+// Session status enum
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+// Central workout session - one per workout attempt
+model WorkoutSession {
+  id                 String            @id @default(uuid())
+  
+  // === CALENDAR FIELDS (for easy querying) ===
+  date               DateTime          // Just the date (YYYY-MM-DD)
+  dayOfWeek          Int               // 0=Sunday, 1=Monday, ..., 6=Saturday
+  weekOfYear         Int               // 1-52
+  month              Int               // 1-12
+  year               Int               // 2024, 2025, etc.
+  
+  // === TIMING ===
+  startedAt          DateTime          @default(now())
+  completedAt        DateTime?
+  timeOfDay          String?           // "morning", "afternoon", "evening", "night"
+  
+  // === STATUS (for resume logic) ===
+  status             SessionStatus     @default(IN_PROGRESS)
+  
+  // === PRE-WORKOUT CONTEXT ===
+  preWorkoutEnergy   Int?              // 1-5 scale
+  sleepLastNight     Float?            // hours
+  sleepQuality       Int?              // 1-5 scale
+  stressLevel        Int?              // 1-5 scale (life stress)
+  soreness           Int?              // 1-5 DOMS level from previous workouts
+  fastedWorkout      Boolean           @default(false)
+  caffeineIntake     Int?              // mg consumed before workout
+  
+  // === POST-WORKOUT METRICS ===
+  postWorkoutEnergy  Int?              // 1-5 scale
+  pumpRating         Int?              // 1-5 scale (muscle pump quality)
+  focusRating        Int?              // 1-5 scale (mind-muscle connection)
+  overallRating      Int?              // 1-5 session satisfaction
+  
+  // === ENVIRONMENT ===
+  environment        String?           // "home", "commercial_gym", "outdoor", "hotel", "travel"
+  
+  // === PERIODIZATION ===
+  trainingPhase      String?           // "hypertrophy", "strength", "deload", "peaking", "maintenance"
+  programName        String?           // "PPL Week 4", "Starting Strength", custom name
+  mesocycleWeek      Int?              // Week 1-8 of current training block
+  
+  // === NOTES ===
+  notes              String?
+  
+  // === RELATIONS ===
+  userId             String
+  user               User              @relation(fields: [userId], references: [id])
+  routineId          String?
+  routine            WorkoutRoutine?   @relation(fields: [routineId], references: [id])
+  exercises          SessionExercise[]
+  
+  // Link to the Warmup that unlocked this session
+  warmupLogId        String?           @unique
+  warmupLog          WarmupLog?        @relation(fields: [warmupLogId], references: [id])
+  
+  @@index([userId, date])
+  @@index([userId, year, month])
+  @@index([status])
+  @@index([dayOfWeek])
+}
+
+// Exercise instance within a session
+model SessionExercise {
+  id                 String          @id @default(uuid())
+  order              Int             // Position in session
+  
+  // Timing
+  startedAt          DateTime?
+  completedAt        DateTime?
+  
+  // Skip/Swap Tracking
+  skipped            Boolean         @default(false)
+  skipReason         String?         // "pain", "equipment", "fatigue", "time"
+  swappedFromId      String?         // Reference if this replaced another exercise
+  
+  // Relations
+  sessionId          String
+  session            WorkoutSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exerciseId         String
+  exercise           Exercise        @relation(fields: [exerciseId], references: [id])
+  sets               SetLog[]
+  
+  @@index([sessionId])
+}
+
+// Atomic unit: one set of one exercise
+model SetLog {
+  id                 String          @id @default(uuid())
+  setNumber          Int             // 1, 2, 3...
+  
+  // === PERFORMANCE ===
+  targetReps         Int             // What was planned
+  actualReps         Int             // What was achieved
+  weight             Float           @default(0) // 0 = bodyweight
+  weightUnit         String          @default("kg") // "kg" or "lbs"
+  
+  // === SUBJECTIVE METRICS ===
+  rpe                Int?            // 1-10 Rate of Perceived Exertion
+  painLevel          Int?            // 0-10, 0 = no pain
+  painLocation       String?         // "elbow", "shoulder", "knee", etc.
+  
+  // === TIMING ===
+  restTaken          Int?            // Actual rest in seconds before this set
+  tempo              String?         // "3-1-2-0" format (eccentric-pause-concentric-pause)
+  completedAt        DateTime        @default(now())
+  
+  // === FLAGS ===
+  isWarmupSet        Boolean         @default(false)
+  isDropSet          Boolean         @default(false)
+  isFailure          Boolean         @default(false) // Went to technical failure
+  
+  // === NOTES ===
+  formNotes          String?         // "felt unstable", "good squeeze", etc.
+  
+  // Relations
+  sessionExerciseId  String
+  sessionExercise    SessionExercise @relation(fields: [sessionExerciseId], references: [id], onDelete: Cascade)
+  
+  // Link to blocker if this set aggravated an injury
+  aggravatedBlockerId String?
+  aggravatedBlocker   PhysicalBlocker? @relation(fields: [aggravatedBlockerId], references: [id])
+  
+  @@index([sessionExerciseId])
+  @@index([completedAt])
+}
+
+// ============================================
+// BODY OBSERVABILITY (Blockers/Injuries)
+// ============================================
+
+enum BlockerStatus {
+  ACTIVE      // Currently hurting
+  RECOVERING  // Pain gone, but being careful
+  RESOLVED    // Fully healed
+  CHRONIC     // Permanent issue to manage
+}
+
+// Physical issues tracker (like Jira tickets for your body)
+model PhysicalBlocker {
+  id          String        @id @default(uuid())
+  name        String        // "Golfer's Elbow", "Tight Left Hamstring"
+  bodyPart    String        // "Right Elbow", "Lower Back", "Left Shoulder"
+  
+  status      BlockerStatus @default(ACTIVE)
+  severity    Int           // 1-10 initial severity
+  
+  startDate   DateTime      @default(now())
+  resolvedAt  DateTime?     // When the "ticket" was closed
+  
+  notes       String?       // "Hurts when gripping tight"
+  
+  // Relations
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  
+  // History of severity changes
+  entries     BlockerEntry[]
+  
+  // Sets that aggravated this blocker
+  aggravatedByLogs SetLog[]
+  
+  @@index([userId, status])
+}
+
+// Severity history for a blocker (track recovery over time)
+model BlockerEntry {
+  id          String          @id @default(uuid())
+  date        DateTime        @default(now())
+  severity    Int             // 1-10 current severity
+  notes       String?         // "Felt better after stretching"
+  
+  blockerId   String
+  blocker     PhysicalBlocker @relation(fields: [blockerId], references: [id], onDelete: Cascade)
+  
+  @@index([blockerId, date])
 }

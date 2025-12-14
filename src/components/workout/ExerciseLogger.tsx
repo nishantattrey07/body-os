@@ -1,19 +1,22 @@
 "use client";
 
-import { logExercise } from "@/app/actions/workout";
+import { completeExercise, logSet } from "@/app/actions/workout-session";
+import { BlockerPicker } from "@/components/blockers/BlockerPicker";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, CheckCircle, Minus, Plus } from "lucide-react";
 import { useState } from "react";
 
 interface ExerciseLoggerProps {
   exercise: any;
-  onComplete: () => void;
+  sessionExerciseId?: string; // From WorkoutSession
+  onComplete: (setsCount: number) => void;
 }
 
-export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
+export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: ExerciseLoggerProps) {
   const [reps, setReps] = useState(exercise.defaultReps || 10);
   const [painLevel, setPainLevel] = useState(0);
   const [showPainSlider, setShowPainSlider] = useState(false);
+  const [selectedBlockerId, setSelectedBlockerId] = useState<string | null>(null);
   const [logging, setLogging] = useState(false);
   const [restTimer, setRestTimer] = useState<number | null>(null);
   const [swapSuggestion, setSwapSuggestion] = useState<any>(null);
@@ -25,62 +28,70 @@ export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
     
     setLogging(true);
     try {
-      const result = await logExercise({
-        exerciseId: exercise.id,
-        reps,
-        painLevel: showPainSlider ? painLevel : undefined,
-      });
+      // Only log to database if we have a session exercise ID
+      if (sessionExerciseId) {
+        const result = await logSet({
+          sessionExerciseId,
+          setNumber: currentSet,
+          targetReps: exercise.defaultReps || 10,
+          actualReps: reps,
+          weight: 0, // bodyweight
+          painLevel: showPainSlider ? painLevel : undefined,
+          aggravatedBlockerId: selectedBlockerId || undefined,
+        });
 
-      // Check for pain-based swap
-      if (result.swapSuggestion) {
-        setSwapSuggestion(result.swapSuggestion);
-      } else {
-        // Check if this was the last set
-        if (currentSet >= totalSets) {
-          // Exercise complete - move to next
-          setTimeout(() => onComplete(), 500);
-        } else {
-          // More sets to go - start rest timer
-          setCurrentSet(prev => prev + 1);
-          setCurrentSet(prev => prev + 1);
-          // Use configured rest time (default to 60s if missing)
-          const restTime = exercise.restSeconds !== undefined ? exercise.restSeconds : 60;
-          
-          if (restTime > 0) {
-              setRestTimer(restTime);
-              const timer = setInterval(() => {
-                setRestTimer(prev => {
-                  if (prev === null || prev <= 1) {
-                    clearInterval(timer);
-                    return null;
-                  }
-                  return prev - 1;
-                });
-              }, 1000);
-          } else {
-              // No rest
-              setRestTimer(null);
-          }
-          
-          // Show pain slider for next set
-          setShowPainSlider(true);
+        // Check for pain-based swap
+        if (result.swapSuggestion) {
+          setSwapSuggestion(result.swapSuggestion);
+          return;
         }
+      }
+
+      // Check if this was the last set
+      if (currentSet >= totalSets) {
+        // Mark exercise as complete if we have session
+        if (sessionExerciseId) {
+          await completeExercise(sessionExerciseId);
+        }
+        // Exercise complete - move to next, passing the number of sets completed
+        setTimeout(() => onComplete(totalSets), 500);
+      } else {
+        // More sets to go - start rest timer
+        setCurrentSet(prev => prev + 1);
+        
+        // Use configured rest time (default to 60s if missing)
+        const restTime = exercise.restSeconds !== undefined ? exercise.restSeconds : 60;
+        
+        if (restTime > 0) {
+            setRestTimer(restTime);
+            const timer = setInterval(() => {
+              setRestTimer(prev => {
+                if (prev === null || prev <= 1) {
+                  clearInterval(timer);
+                  return null;
+                }
+                return prev - 1;
+              });
+            }, 1000);
+        } else {
+            // No rest
+            setRestTimer(null);
+        }
+        
+        // Show pain slider for next set
+        setShowPainSlider(true);
       }
     } catch (error: any) {
       console.error("Failed to log exercise:", error);
-      if (error.message?.includes("warmup")) {
-        alert("Complete warmup before logging exercises!");
-      } else {
-        alert("Failed to log exercise. Please try again.");
-      }
+      alert("Failed to log exercise. Please try again.");
     } finally {
       setLogging(false);
     }
   };
 
   const handleAcceptSwap = () => {
-    // User acknowledges the swap - move to next exercise
-    onComplete();
+    // User acknowledges the swap - move to next exercise, count sets completed so far
+    onComplete(currentSet);
   };
 
   return (
@@ -151,7 +162,7 @@ export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
             <div className="flex items-center gap-2 mb-4">
               <AlertTriangle size={18} className="text-amber-600" />
               <p className="text-sm font-bold text-amber-900 uppercase tracking-wide">
-                Elbow Pain Level?
+                Pain Level?
               </p>
             </div>
             
@@ -171,10 +182,18 @@ export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
             </div>
 
             {painLevel > 3 && (
-              <div className="mt-3 p-3 bg-red-100 border border-red-300 rounded-xl">
-                <p className="text-xs text-red-700 font-medium">
-                  ⚠️ High pain detected. Exercise may be swapped to safer alternative.
-                </p>
+              <div className="mt-3 space-y-3">
+                <div className="p-3 bg-red-100 border border-red-300 rounded-xl">
+                  <p className="text-xs text-red-700 font-medium">
+                    ⚠️ High pain detected. Exercise may be swapped to safer alternative.
+                  </p>
+                </div>
+                
+                {/* Blocker Picker - Link to existing issue */}
+                <BlockerPicker
+                  selectedBlockerId={selectedBlockerId}
+                  onSelect={setSelectedBlockerId}
+                />
               </div>
             )}
           </motion.div>
@@ -226,7 +245,7 @@ export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
                   Exercise Swap
                 </h3>
                 <p className="text-zinc-600 text-sm">
-                  {swapSuggestion.reason}
+                  High pain detected. Consider switching to a safer alternative.
                 </p>
               </div>
 
@@ -234,13 +253,13 @@ export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-zinc-500">From:</span>
                   <span className="font-bold text-red-600 line-through">
-                    {swapSuggestion.originalExercise.name}
+                    {swapSuggestion.from}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-zinc-500">To:</span>
                   <span className="font-bold text-green-600">
-                    {swapSuggestion.swapToExercise.name}
+                    {swapSuggestion.to}
                   </span>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { BlockerDashboard } from "@/components/blockers/BlockerDashboard";
 import { DailyReview } from "@/components/progress/DailyReview";
 import { DeadHangTracker } from "@/components/progress/DeadHangTracker";
 import { AnimatePresence, motion } from "framer-motion";
@@ -58,11 +59,19 @@ export default function ProgressPage() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
+            className="space-y-8"
           >
-            <DeadHangTracker />
+            {/* Body Status - Physical Blockers */}
+            <BlockerDashboard />
+            
+            {/* Dead Hang Tracker */}
+            <div className="pt-6 border-t border-zinc-200">
+              <DeadHangTracker />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
 }
+

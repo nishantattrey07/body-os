@@ -175,156 +175,42 @@ export async function isWarmupComplete() {
     }
 }
 
+// ==============================================
+// DEPRECATED: The following functions used WorkoutLog which has been removed.
+// Use the new session-based actions from './workout-session.ts' instead:
+// - startWorkoutSession()
+// - logSet()
+// - completeExercise()
+// - skipExercise()
+// - completeWorkoutSession()
+// - abandonWorkoutSession()
+// - getActiveSession()
+// - getSessionHistory()
+// ==============================================
+
 /**
- * Log exercise set with pain tracking
+ * @deprecated Use logSet() from './workout-session.ts' instead
  */
-export async function logExercise(data: {
+export async function logExercise(_data: {
     exerciseId: string;
     reps: number;
     weight?: number;
     painLevel?: number;
 }) {
-    try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            throw new Error("Unauthorized");
-        }
-
-        // Check warmup completion first
-        const warmupComplete = await isWarmupComplete();
-        if (!warmupComplete) {
-            throw new Error("Complete warmup before logging exercises");
-        }
-
-        // Create workout log
-        const workoutLog = await prisma.workoutLog.create({
-            data: {
-                userId: session.user.id,
-                exerciseId: data.exerciseId,
-                reps: data.reps,
-                weight: data.weight,
-                painLevel: data.painLevel,
-                date: new Date(),
-            },
-            include: {
-                exercise: {
-                    include: {
-                        swapExercise: true,
-                    },
-                },
-            },
-        });
-
-        // Check if pain-based swap is needed
-        let swapSuggestion = null;
-        if (data.painLevel && data.painLevel > 3) {
-            swapSuggestion = await checkExerciseSwap(data.exerciseId, data.painLevel);
-        }
-
-        return {
-            workoutLog,
-            swapSuggestion,
-        };
-    } catch (error) {
-        console.error("Failed to log exercise:", error);
-        throw error;
-    }
+    throw new Error("DEPRECATED: Use logSet() from './workout-session.ts' instead");
 }
 
 /**
- * SMART LOGIC: Check if exercise should be swapped based on pain level
- */
-async function checkExerciseSwap(exerciseId: string, painLevel: number) {
-    if (painLevel <= 3) return null;
-
-    try {
-        const exercise = await prisma.exercise.findUnique({
-            where: { id: exerciseId },
-            include: { swapExercise: true },
-        });
-
-        if (exercise?.swapExercise) {
-            console.log('[SMART LOGIC] Pain-based swap triggered:', {
-                from: exercise.name,
-                to: exercise.swapExercise.name,
-                painLevel,
-            });
-
-            return {
-                originalExercise: exercise,
-                swapToExercise: exercise.swapExercise,
-                reason: `High pain level detected (${painLevel}/10)`,
-            };
-        }
-
-        return null;
-    } catch (error) {
-        console.error('Failed to check exercise swap:', error);
-        return null;
-    }
-}
-
-/**
- * Get today's workout logs
+ * @deprecated Use getSessionHistory() from './workout-session.ts' instead
  */
 export async function getTodayWorkoutLogs() {
-    try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            return [];
-        }
-
-        const today = new Date();
-        const logs = await prisma.workoutLog.findMany({
-            where: {
-                userId: session.user.id,
-                date: {
-                    gte: startOfDay(today),
-                    lte: endOfDay(today),
-                },
-            },
-            include: {
-                exercise: true,
-            },
-            orderBy: {
-                date: 'desc',
-            },
-        });
-
-        return logs;
-    } catch (error) {
-        console.error("Failed to fetch workout logs:", error);
-        return [];
-    }
+    throw new Error("DEPRECATED: Use getActiveSession() or getSessionHistory() from './workout-session.ts'");
 }
 
 /**
- * Get workout history for progress tracking
+ * @deprecated Use getSessionHistory() from './workout-session.ts' instead
  */
-export async function getWorkoutHistory(exerciseId: string, limit: number = 10) {
-    try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            return [];
-        }
-
-        const logs = await prisma.workoutLog.findMany({
-            where: {
-                userId: session.user.id,
-                exerciseId,
-            },
-            orderBy: {
-                date: 'desc',
-            },
-            take: limit,
-            include: {
-                exercise: true,
-            },
-        });
-
-        return logs;
-    } catch (error) {
-        console.error("Failed to fetch workout history:", error);
-        return [];
-    }
+export async function getWorkoutHistory(_exerciseId: string, _limit: number = 10) {
+    throw new Error("DEPRECATED: Use getSessionHistory() from './workout-session.ts'");
 }
+
