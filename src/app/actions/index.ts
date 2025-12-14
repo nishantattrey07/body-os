@@ -20,6 +20,22 @@ export {
     logExercise, toggleWarmupItem
 } from './workout';
 
+// Exercises
+export { createExercise, deleteExercise, getExerciseCategories, getExercises, updateExercise } from './exercises';
+
+// Routines
+export {
+    addExerciseToRoutine,
+    createRoutine,
+    deleteRoutine,
+    getRoutineById,
+    getRoutines,
+    removeExerciseFromRoutine,
+    reorderRoutineExercises,
+    updateRoutine,
+    updateRoutineExercise
+} from './routines';
+
 // Progress
 export {
     getDeadHangHistory, getLatestPhotosByType, getProgressPhotos, logDeadHang, uploadProgressPhoto

@@ -28,29 +28,26 @@ model Account {
 }
 
 model User {
-  id String @id @default(uuid())
-  
-  // Auth fields
-  email         String    @unique
-  emailVerified DateTime?
-  password      String?   // Optional for OAuth users
-  name          String
-  image         String?   // Profile picture from OAuth
-  
-  // Timestamps
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String          @id @default(uuid())
+  name           String?
+  email          String          @unique
+  emailVerified  DateTime?
+  image          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   
   // Relations
   accounts       Account[]
   dailyLogs      DailyLog[]
   nutritionLogs  NutritionLog[]
+  waterLogs      WaterLog[]
   workoutLogs    WorkoutLog[]
   warmupLogs     WarmupLog[]
-  waterLogs      WaterLog[]
   progressPhotos ProgressPhoto[]
   deadHangLogs   DeadHangLog[]
-  userSettings   UserSettings?
+  settings       UserSettings?
+  exercises      Exercise[]       // User-owned exercises
+  routines       WorkoutRoutine[] // User-owned routines
 }
 
 model DailyLog {
@@ -126,10 +123,16 @@ model NutritionLog {
 
 model Exercise {
   id             String       @id @default(uuid())
-  name           String       @unique
-  defaultReps    Int
-  defaultSets    Int
-  category       String       // Push, Pull, Legs, Core
+  name           String
+  defaultReps    Int          @default(10)
+  defaultSets    Int          @default(3)
+  category       String       // Push, Pull, Legs, Core, or custom
+  description    String?
+  
+  // System vs User-owned
+  isSystem       Boolean      @default(false)
+  userId         String?
+  user           User?        @relation(fields: [userId], references: [id])
   
   // Smart Swap Logic for Pain (Self-relation)
   swapExerciseId String?
@@ -138,6 +141,8 @@ model Exercise {
 
   workoutLogs    WorkoutLog[]
   routineExercises RoutineExercise[]
+  
+  @@unique([name, userId])
 }
 
 model WorkoutLog {
@@ -189,18 +194,30 @@ model WaterLog {
 
 model WorkoutRoutine {
   id          String            @id @default(uuid())
-  name        String            @unique
+  name        String
   description String?
+  
+  // System vs User-owned
+  isSystem    Boolean           @default(false)
+  userId      String?
+  user        User?             @relation(fields: [userId], references: [id])
+  
   exercises   RoutineExercise[]
+  
+  @@unique([name, userId])
 }
 
 model RoutineExercise {
-  id         String         @id @default(uuid())
-  order      Int
-  routineId  String
-  routine    WorkoutRoutine @relation(fields: [routineId], references: [id])
-  exerciseId String
-  exercise   Exercise       @relation(fields: [exerciseId], references: [id])
+  id          String         @id @default(uuid())
+  order       Int
+  sets        Int            @default(3)
+  reps        Int            @default(10)
+  restSeconds Int            @default(90)  // Per-exercise rest time
+  
+  routineId   String
+  routine     WorkoutRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  exerciseId  String
+  exercise    Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
 }
 
 model ProgressPhoto {
