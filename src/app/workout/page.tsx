@@ -1,111 +1,169 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { ArrowLeft, Check, Lock, Unlock } from "lucide-react";
+import { getWorkoutRoutines } from "@/app/actions/workout";
+import { ExerciseLogger } from "@/components/workout/ExerciseLogger";
+import { WarmupGate } from "@/components/workout/WarmupGate";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, Dumbbell } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function WorkoutPage() {
   const router = useRouter();
-  const [checklist, setChecklist] = useState({
-    wrist: false,
-    catCow: false,
-    shoulder: false
-  });
   
-  const allChecked = Object.values(checklist).every(Boolean);
+  const [stage, setStage] = useState<'select' | 'warmup' | 'exercise'>('select');
+  const [selectedRoutine, setSelectedRoutine] = useState<any>(null);
+  const [routines, setRoutines] = useState<any[]>([]);
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const toggle = (key: keyof typeof checklist) => {
-    setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+  useEffect(() => {
+    loadRoutines();
+  }, []);
 
-  const handleUnlock = () => {
-    if (allChecked) {
-        // Unlock animation here?
-        alert("Workout Unlocked! (Logic TBD)");
+  const loadRoutines = async () => {
+    try {
+      const data = await getWorkoutRoutines();
+      setRoutines(data);
+    } catch (error) {
+      console.error("Failed to load routines:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleSelectRoutine = (routine: any) => {
+    setSelectedRoutine(routine);
+    setStage('warmup');
+  };
+
+  const handleWarmupComplete = () => {
+    setStage('exercise');
+    setCurrentExerciseIndex(0);
+  };
+
+  const handleExerciseComplete = () => {
+    const exercises = selectedRoutine?.exercises || [];
+    if (currentExerciseIndex < exercises.length - 1) {
+      setCurrentExerciseIndex(prev => prev + 1);
+    } else {
+      // Workout complete
+      alert("Workout complete! Great job!");
+      router.push('/');
+    }
+  };
+
+  const currentExercise = selectedRoutine?.exercises?.[currentExerciseIndex]?.exercise;
+
   return (
-    <div className="min-h-screen bg-zinc-950 p-6 max-w-md mx-auto flex flex-col items-center justify-between text-white relative overflow-hidden">
-      
-      {/* Background Ambience */}
-      <div className="absolute inset-0 bg-gradient-to-br from-red-950/30 to-black pointer-events-none" />
-
+    <div className="min-h-screen bg-background p-6 max-w-md mx-auto flex flex-col">
       {/* Header */}
-      <div className="flex items-center w-full justify-between z-10 mb-8">
+      <div className="flex items-center gap-4 mb-8">
         <button 
-            onClick={() => router.back()}
-            className="p-2 rounded-full bg-zinc-900 hover:bg-zinc-800"
+          onClick={() => {
+            if (stage === 'select') {
+              router.back();
+            } else if (stage === 'warmup') {
+              setStage('select');
+            } else {
+              setStage('warmup');
+            }
+          }}
+          className="p-2 rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors"
         >
-            <ArrowLeft className="text-zinc-400" />
+          <ArrowLeft className="text-zinc-600" />
         </button>
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-950/50 border border-red-900/50">
-            <Lock size={14} className="text-red-500" />
-            <span className="text-xs font-bold uppercase tracking-wider text-red-500">System Locked</span>
-        </div>
-      </div>
-
-      <div className="w-full z-10 space-y-8">
-        <h1 className="text-5xl font-bold uppercase tracking-tighter text-white font-heading text-center leading-[0.9]">
-            Pre-Flight<br /><span className="text-red-600">Checks</span>
+        <h1 className="text-3xl font-bold uppercase tracking-tighter text-foreground font-heading">
+          {stage === 'select' ? 'Select Routine' : stage === 'warmup' ? 'Warmup' : 'Workout'}
         </h1>
-
-        <div className="space-y-4">
-            <CheckItem 
-                label="Wrist Rotations" 
-                checked={checklist.wrist} 
-                onClick={() => toggle("wrist")} 
-            />
-            <CheckItem 
-                label="Cat-Cow Stretch" 
-                checked={checklist.catCow} 
-                onClick={() => toggle("catCow")} 
-            />
-            <CheckItem 
-                label="Shoulder Dislocates" 
-                checked={checklist.shoulder} 
-                onClick={() => toggle("shoulder")} 
-            />
-        </div>
       </div>
 
-      <div className="w-full z-10 mt-12 mb-8">
-        <motion.button
-            onClick={handleUnlock}
-            disabled={!allChecked}
-            whileTap={{ scale: 0.98 }}
-            className={`w-full relative h-20 rounded-2xl flex items-center justify-center overflow-hidden transition-all duration-300 ${allChecked ? 'bg-red-600 shadow-[0_0_30px_rgba(220,38,38,0.4)]' : 'bg-zinc-900 border border-zinc-800'}`}
-        >
-             {/* Slide Track Visual */}
-             {!allChecked && (
-                 <div className="absolute left-2 top-2 bottom-2 w-16 bg-zinc-800 rounded-xl flex items-center justify-center shadow-inner">
-                     <Lock size={20} className="text-zinc-500" />
-                 </div>
-             )}
-             
-             <span className={`text-2xl font-bold uppercase tracking-widest font-heading ${allChecked ? 'text-white' : 'text-zinc-600 pl-12'}`}>
-                 {allChecked ? "Initiate Sequence" : "Slide to Unlock"}
-             </span>
+      {/* Stages */}
+      <AnimatePresence mode="wait">
+        {stage === 'select' && (
+          <motion.div
+            key="select"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="space-y-4"
+          >
+            {loading ? (
+              <p className="text-center text-zinc-400 py-8">Loading routines...</p>
+            ) : routines.length === 0 ? (
+              <p className="text-center text-zinc-400 py-8">No routines available</p>
+            ) : (
+              routines.map((routine) => (
+                <button
+                  key={routine.id}
+                  onClick={() => handleSelectRoutine(routine)}
+                  className="w-full p-6 rounded-3xl bg-white border border-zinc-100 hover:shadow-lg transition-all text-left"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                      <Dumbbell className="text-red-600" size={24} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold font-heading text-foreground">
+                        {routine.name}
+                      </h3>
+                      {routine.description && (
+                        <p className="text-sm text-zinc-500 mt-1">{routine.description}</p>
+                      )}
+                      <p className="text-xs text-zinc-400 mt-2">
+                        {routine.exercises?.length || 0} exercises
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
+          </motion.div>
+        )}
 
-             {allChecked && <Unlock className="absolute right-6 text-white/50" />}
-        </motion.button>
-      </div>
+        {stage === 'warmup' && (
+          <motion.div
+            key="warmup"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+          >
+            <WarmupGate onUnlock={handleWarmupComplete} />
+          </motion.div>
+        )}
+
+        {stage === 'exercise' && currentExercise && (
+          <motion.div
+            key="exercise"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+          >
+            {/* Progress */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-zinc-400">Exercise Progress</span>
+                <span className="text-sm font-bold text-foreground">
+                  {currentExerciseIndex + 1} / {selectedRoutine?.exercises?.length}
+                </span>
+              </div>
+              <div className="w-full bg-zinc-200 rounded-full h-2">
+                <div 
+                  className="bg-red-600 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${((currentExerciseIndex + 1) / selectedRoutine.exercises.length) * 100}%` 
+                  }}
+                />
+              </div>
+            </div>
+
+            <ExerciseLogger 
+              exercise={currentExercise} 
+              onComplete={handleExerciseComplete} 
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-}
-
-function CheckItem({ label, checked, onClick }: { label: string, checked: boolean, onClick: () => void }) {
-    return (
-        <motion.button 
-            onClick={onClick}
-            whileTap={{ scale: 0.98 }}
-            className={`w-full p-4 rounded-2xl flex items-center justify-between border-2 transition-all duration-200 ${checked ? 'bg-red-500/10 border-red-500' : 'bg-zinc-900 border-zinc-800'}`}
-        >
-            <span className={`text-xl font-bold uppercase tracking-wide font-heading ${checked ? 'text-white' : 'text-zinc-500'}`}>{label}</span>
-            <div className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${checked ? 'bg-red-500' : 'bg-zinc-800'}`}>
-                {checked && <Check size={18} className="text-white" />}
-            </div>
-        </motion.button>
-    )
 }

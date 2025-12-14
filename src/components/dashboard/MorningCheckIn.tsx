@@ -1,23 +1,34 @@
 "use client";
 
+import { createDailyLog } from "@/app/actions/daily-log";
 import { BigButton } from "@/components/ui/BigButton";
 import { motion } from "framer-motion";
 import { useState } from "react";
 
 interface MorningCheckInProps {
-  onComplete: (data: { weight: number; sleep: number }) => void;
+  onComplete: () => void;
 }
 
 export function MorningCheckIn({ onComplete }: MorningCheckInProps) {
   const [weight, setWeight] = useState<string>("");
   const [sleep, setSleep] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (weight && sleep) {
-      onComplete({
-        weight: parseFloat(weight),
-        sleep: parseFloat(sleep),
-      });
+      setSubmitting(true);
+      try {
+        await createDailyLog({
+          weight: parseFloat(weight),
+          sleepHours: parseFloat(sleep),
+        });
+        onComplete();
+      } catch (error) {
+        console.error("Failed to create daily log:", error);
+        alert("Failed to save check-in. Please try again.");
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -31,12 +42,14 @@ export function MorningCheckIn({ onComplete }: MorningCheckInProps) {
         <h2 className="text-3xl font-bold uppercase tracking-tighter font-heading text-primary">
           Morning Check-In
         </h2>
-        <p className="text-zinc-300 font-medium text-sm tracking-wide">Initialize Body OS for the day</p>
+        <p className="text-zinc-400 font-medium text-sm tracking-wide">
+          Initialize Body OS for the day
+        </p>
       </div>
 
       <div className="w-full space-y-6">
         <div className="space-y-3">
-          <label className="text-xs font-bold uppercase tracking-widest text-zinc-300 font-heading pl-4">
+          <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 font-heading pl-4">
             Current Weight (kg)
           </label>
           <input
@@ -44,32 +57,32 @@ export function MorningCheckIn({ onComplete }: MorningCheckInProps) {
             step="0.1"
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
-            placeholder="83.5"
-            className="w-full rounded-3xl border-0 bg-background p-6 text-center text-4xl font-bold text-foreground placeholder-zinc-100 focus:ring-2 focus:ring-primary font-heading shadow-inner outline-none"
+            placeholder="84.0"
+            className="w-full rounded-3xl border-0 bg-background p-6 text-center text-4xl font-bold text-foreground placeholder-zinc-200 focus:ring-2 focus:ring-primary font-heading shadow-inner outline-none"
           />
         </div>
 
         <div className="space-y-3">
-          <label className="text-xs font-bold uppercase tracking-widest text-zinc-300 font-heading pl-4">
+          <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 font-heading pl-4">
             Sleep Duration (hrs)
           </label>
           <input
             type="number"
-            step="0.1"
+            step="0.5"
             value={sleep}
             onChange={(e) => setSleep(e.target.value)}
-            placeholder="7.5"
-            className="w-full rounded-3xl border-0 bg-background p-6 text-center text-4xl font-bold text-foreground placeholder-zinc-100 focus:ring-2 focus:ring-primary font-heading shadow-inner outline-none"
+            placeholder="7.0"
+            className="w-full rounded-3xl border-0 bg-background p-6 text-center text-4xl font-bold text-foreground placeholder-zinc-200 focus:ring-2 focus:ring-primary font-heading shadow-inner outline-none"
           />
         </div>
       </div>
 
       <BigButton 
         onClick={handleSubmit} 
-        disabled={!weight || !sleep}
-        className="mt-4 shadow-[0_10px_30px_-10px_rgba(239,20,0,0.4)]"
+        disabled={!weight || !sleep || submitting}
+        className="mt-4 shadow-[0_10px_30px_-10px_rgba(239,68,68,0.4)]"
       >
-        Initialize System
+        {submitting ? "Initializing..." : "Initialize System"}
       </BigButton>
     </motion.div>
   );
