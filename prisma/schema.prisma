@@ -50,6 +50,7 @@ model User {
   waterLogs      WaterLog[]
   progressPhotos ProgressPhoto[]
   deadHangLogs   DeadHangLog[]
+  userSettings   UserSettings?
 }
 
 model DailyLog {
@@ -63,9 +64,9 @@ model DailyLog {
   
   // Computed/Cached aggregates
   proteinTotal   Float    @default(0)
-  waterTotal     Float    @default(0)
   carbsTotal     Float    @default(0)
-  fatTotal       Float    @default(0)
+  fatsTotal      Float    @default(0)
+  waterTotal     Float    @default(0)
   caloriesTotal  Float    @default(0)
   
   userId         String
@@ -76,6 +77,22 @@ model DailyLog {
   
   @@unique([userId, date])
   @@index([date])
+}
+
+model UserSettings {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id])
+  
+  // Macro Targets
+  proteinTarget    Float    @default(140)
+  carbsTarget      Float    @default(200)
+  fatsTarget       Float    @default(60)
+  caloriesTarget   Float    @default(2000)
+  waterTarget      Float    @default(4000)
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model InventoryItem {

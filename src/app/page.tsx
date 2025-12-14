@@ -1,12 +1,14 @@
 "use client";
 
 import { getTodayLog } from "@/app/actions/daily-log";
-import { FuelGauge } from "@/components/dashboard/FuelGauge";
+import { getUserSettings } from "@/app/actions/settings";
+import { MacroGauge } from "@/components/dashboard/MacroGauge";
 import { MorningCheckIn } from "@/components/dashboard/MorningCheckIn";
 import { StatusIndicator } from "@/components/dashboard/StatusIndicator";
 import { WaterTracker } from "@/components/dashboard/WaterTracker";
 import { BigButton } from "@/components/ui/BigButton";
 import { AnimatePresence, motion } from "framer-motion";
+import { Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -16,32 +18,41 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [needsCheckIn, setNeedsCheckIn] = useState(true);
   const [dailyLog, setDailyLog] = useState<any>(null);
+  const [settings, setSettings] = useState<any>({
+    proteinTarget: 140,
+    carbsTarget: 200,
+    fatsTarget: 60,
+    caloriesTarget: 2000,
+    waterTarget: 4000,
+  });
 
   useEffect(() => {
-    loadTodayData();
+    loadData();
   }, []);
 
-  const loadTodayData = async () => {
+  const loadData = async () => {
     try {
-      const log = await getTodayLog();
+      const [log, userSettings] = await Promise.all([
+        getTodayLog(),
+        getUserSettings(),
+      ]);
       
-      if (log && log.weight && log.sleepHours) {
-        // Check-in already done
+      if (log?.weight && log?.sleepHours) {
         setNeedsCheckIn(false);
         setDailyLog(log);
-      } else {
-        // Need check-in
-        setNeedsCheckIn(true);
       }
+      
+      setSettings(userSettings);
     } catch (error) {
-      console.error("Failed to load today's log:", error);
+      console.error("Failed to load data:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCheckInComplete = async () => {
-    await loadTodayData();
+    setNeedsCheckIn(false);
+    await loadData();
   };
 
   if (loading) {
@@ -53,11 +64,9 @@ export default function Home() {
   }
 
   // Calculate status
-  const proteinTarget = 140;
-  const waterTarget = 4000;
-  const proteinProgress = dailyLog ? (dailyLog.proteinTotal / proteinTarget) * 100 : 0;
-  const waterProgress = dailyLog ? (dailyLog.waterTotal / waterTarget) * 100 : 0;
-  const isOnTrack = proteinProgress >= 30 || waterProgress >= 20; // At least some progress
+  const proteinProgress = dailyLog ? (dailyLog.proteinTotal / settings.proteinTarget) * 100 : 0;
+  const waterProgress = dailyLog ? (dailyLog.waterTotal / settings.waterTarget) * 100 : 0;
+  const isOnTrack = proteinProgress >= 30 || waterProgress >= 20;
   
   const systemMode = (dailyLog?.sleepHours || 0) < 6 ? "saver" : "optimized";
 
@@ -80,10 +89,18 @@ export default function Home() {
                 <h1 className="text-4xl font-bold uppercase tracking-tighter text-foreground font-heading">
                   Body OS
                 </h1>
-                <StatusIndicator 
-                  status={isOnTrack ? "ready" : "warning"} 
-                  label={isOnTrack ? "On Track" : "Energy Saver"}
-                />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => router.push('/settings')}
+                    className="p-2 rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors"
+                  >
+                    <Settings size={20} className="text-zinc-600" />
+                  </button>
+                  <StatusIndicator 
+                    status={isOnTrack ? "ready" : "warning"} 
+                    label={isOnTrack ? "On Track" : "Energy Saver"}
+                  />
+                </div>
               </div>
               <button 
                 onClick={() => {
@@ -98,19 +115,33 @@ export default function Home() {
 
             {/* Core Vitals */}
             <div className="flex-1 flex flex-col items-center justify-center w-full z-10">
-              <FuelGauge 
-                current={Math.round(dailyLog?.proteinTotal || 0)} 
-                target={proteinTarget} 
-                label="Daily Protein" 
-                unit="g"
+              <MacroGauge 
+                data={{
+                  protein: { 
+                    current: dailyLog?.proteinTotal || 0, 
+                    target: settings.proteinTarget 
+                  },
+                  carbs: { 
+                    current: dailyLog?.carbsTotal || 0, 
+                    target: settings.carbsTarget 
+                  },
+                  fats: { 
+                    current: dailyLog?.fatsTotal || 0, 
+                    target: settings.fatsTarget 
+                  },
+                  calories: { 
+                    current: dailyLog?.caloriesTotal || 0, 
+                    target: settings.caloriesTarget 
+                  },
+                }}
               />
               
               {/* Quick Stats Grid */}
-              <div className="grid grid-cols-2 gap-4 w-full mt-12">
-                <div className="bg-white rounded-3xl p-6 flex flex-col items-start shadow-sm border border-zinc-50">
-                  <span className="text-zinc-400 font-medium text-sm uppercase tracking-wider mb-1">Weight</span>
-                  <span className="text-4xl font-bold font-heading">
-                    {dailyLog?.weight || 0}<span className="text-lg text-zinc-400">kg</span>
+              <div className="grid grid-cols-2 gap-4 mt-8 w-full px-6">
+                <div className={`rounded-3xl p-6 flex flex-col items-start shadow-sm border ${systemMode === 'saver' ? 'bg-red-50 border-red-100' : 'bg-white border-zinc-50'}`}>
+                  <span className={`${systemMode === 'saver' ? 'text-red-600' : 'text-zinc-400'} font-medium text-sm uppercase tracking-wider mb-1`}>Weight</span>
+                  <span className={`text-4xl font-bold font-heading ${systemMode === 'saver' ? 'text-red-600' : 'text-foreground'}`}>
+                    {dailyLog?.weight || 0}<span className="text-lg text-zinc-400/70">kg</span>
                   </span>
                 </div>
                 <div className={`rounded-3xl p-6 flex flex-col items-start shadow-sm border ${systemMode === 'saver' ? 'bg-red-50 border-red-100' : 'bg-white border-zinc-50'}`}>
@@ -133,7 +164,6 @@ export default function Home() {
                 <WaterTracker />
               </div>
             </div>
-
 
             {/* Action Buttons */}
             <div className="w-full z-10 mt-8 mb-8 space-y-4">
@@ -163,9 +193,6 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-30 bg-gradient-to-b from-white via-transparent to-transparent"></div>
     </div>
   );
 }

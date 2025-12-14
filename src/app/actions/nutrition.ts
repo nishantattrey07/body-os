@@ -158,51 +158,56 @@ export async function toggleInventoryItem(itemId: string, isActive: boolean) {
 }
 
 /**
- * Internal: Update daily nutrition totals
+ * INTERNAL: Update daily nutrition totals (auto-aggregation)
  */
 async function updateDailyNutritionTotals(userId: string, date: Date) {
-    const logs = await prisma.nutritionLog.findMany({
-        where: {
-            userId,
-            timestamp: {
-                gte: startOfDay(date),
-                lte: endOfDay(date),
-            },
-        },
-        include: {
-            inventoryItem: true,
-        },
-    });
-
-    const proteinTotal = logs.reduce(
-        (sum, log) => sum + log.inventoryItem.proteinPerUnit * log.qty,
-        0
-    );
-
-    const caloriesTotal = logs.reduce(
-        (sum, log) => sum + log.inventoryItem.caloriesPerUnit * log.qty,
-        0
-    );
-
-    // Find or create daily log
-    const normalizedDate = startOfDay(date);
-
-    await prisma.dailyLog.upsert({
-        where: {
-            userId_date: {
+    try {
+        const logs = await prisma.nutritionLog.findMany({
+            where: {
                 userId,
-                date: normalizedDate,
+                timestamp: {
+                    gte: startOfDay(date),
+                    lte: endOfDay(date),
+                },
             },
-        },
-        update: {
-            proteinTotal,
-            caloriesTotal,
-        },
-        create: {
-            userId,
-            date: normalizedDate,
-            proteinTotal,
-            caloriesTotal,
-        },
-    });
+            include: {
+                inventoryItem: true,
+            },
+        });
+
+        const totals = logs.reduce(
+            (acc, log) => ({
+                protein: acc.protein + log.inventoryItem.proteinPerUnit * log.qty,
+                carbs: acc.carbs + log.inventoryItem.carbsPerUnit * log.qty,
+                fats: acc.fats + log.inventoryItem.fatPerUnit * log.qty,
+                calories: acc.calories + log.inventoryItem.caloriesPerUnit * log.qty,
+            }),
+            { protein: 0, carbs: 0, fats: 0, calories: 0 }
+        );
+
+        await prisma.dailyLog.upsert({
+            where: {
+                userId_date: {
+                    userId,
+                    date: startOfDay(date),
+                },
+            },
+            update: {
+                proteinTotal: totals.protein,
+                carbsTotal: totals.carbs,
+                fatsTotal: totals.fats,
+                caloriesTotal: totals.calories,
+            },
+            create: {
+                userId,
+                date: startOfDay(date),
+                proteinTotal: totals.protein,
+                carbsTotal: totals.carbs,
+                fatsTotal: totals.fats,
+                caloriesTotal: totals.calories,
+            },
+        });
+    } catch (error) {
+        console.error('Failed to update daily nutrition totals:', error);
+    }
 }
