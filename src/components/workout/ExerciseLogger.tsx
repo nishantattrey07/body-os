@@ -42,16 +42,25 @@ export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
         } else {
           // More sets to go - start rest timer
           setCurrentSet(prev => prev + 1);
-          setRestTimer(90);
-          const timer = setInterval(() => {
-            setRestTimer(prev => {
-              if (prev === null || prev <= 1) {
-                clearInterval(timer);
-                return null;
-              }
-              return prev - 1;
-            });
-          }, 1000);
+          setCurrentSet(prev => prev + 1);
+          // Use configured rest time (default to 60s if missing)
+          const restTime = exercise.restSeconds !== undefined ? exercise.restSeconds : 60;
+          
+          if (restTime > 0) {
+              setRestTimer(restTime);
+              const timer = setInterval(() => {
+                setRestTimer(prev => {
+                  if (prev === null || prev <= 1) {
+                    clearInterval(timer);
+                    return null;
+                  }
+                  return prev - 1;
+                });
+              }, 1000);
+          } else {
+              // No rest
+              setRestTimer(null);
+          }
           
           // Show pain slider for next set
           setShowPainSlider(true);

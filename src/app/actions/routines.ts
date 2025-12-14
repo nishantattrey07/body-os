@@ -363,3 +363,57 @@ export async function reorderRoutineExercises(
         throw error;
     }
 }
+
+/**
+ * Batch update routine exercises (order and config)
+ */
+export async function batchUpdateRoutineExercises(
+    routineId: string,
+    exercises: {
+        id: string;
+        order: number;
+        sets: number;
+        reps: number;
+        restSeconds: number;
+    }[]
+) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            throw new Error("Unauthorized");
+        }
+
+        // Verify ownership
+        const routine = await prisma.workoutRoutine.findUnique({
+            where: { id: routineId },
+        });
+
+        if (!routine) {
+            throw new Error("Routine not found");
+        }
+
+        if (routine.isSystem || routine.userId !== session.user.id) {
+            throw new Error("Cannot modify this routine");
+        }
+
+        // Apply updates in transaction or parallel
+        await prisma.$transaction(
+            exercises.map((e) =>
+                prisma.routineExercise.update({
+                    where: { id: e.id },
+                    data: {
+                        order: e.order,
+                        sets: e.sets,
+                        reps: e.reps,
+                        restSeconds: e.restSeconds,
+                    },
+                })
+            )
+        );
+
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to batch update routine exercises:", error);
+        throw error;
+    }
+}

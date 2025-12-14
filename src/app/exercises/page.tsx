@@ -100,15 +100,7 @@ export default function ExercisesPage() {
                     <ArrowLeft size={24} />
                 </button>
                 <h1 className="text-xl font-bold font-heading">Exercise Library</h1>
-                <button
-                    onClick={() => {
-                        setEditingExercise(null);
-                        setIsFormOpen(true);
-                    }}
-                    className="p-2 bg-orange-500 hover:bg-orange-600 text-white rounded-full transition-colors"
-                >
-                    <Plus size={24} />
-                </button>
+                
             </div>
 
             {/* Category Filter */}

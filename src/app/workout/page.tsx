@@ -74,9 +74,11 @@ export default function WorkoutPage() {
           >
             <ArrowLeft className="text-zinc-600" />
           </button>
-          <h1 className="text-3xl font-bold uppercase tracking-tighter text-foreground font-heading">
-            {stage === 'select' ? 'Select Routine' : stage === 'warmup' ? 'Warmup' : 'Workout'}
-          </h1>
+          <div className="overflow-hidden">
+            <h1 className="text-3xl font-bold uppercase tracking-tighter text-foreground font-heading truncate">
+              {stage === 'select' ? 'Select Routine' : stage === 'warmup' ? 'Warmup' : (selectedRoutine?.name || 'Workout')}
+            </h1>
+          </div>
         </div>
       </div>
 
@@ -181,7 +183,13 @@ export default function WorkoutPage() {
 
             <ExerciseLogger 
               key={currentExercise.id}
-              exercise={currentExercise} 
+              exercise={{
+                ...currentExercise, // Base exercise info (name, etc)
+                // Override defaults with Routine-specific config
+                defaultSets: selectedRoutine?.exercises?.[currentExerciseIndex]?.sets,
+                defaultReps: selectedRoutine?.exercises?.[currentExerciseIndex]?.reps,
+                restSeconds: selectedRoutine?.exercises?.[currentExerciseIndex]?.restSeconds,
+              }}
               onComplete={handleExerciseComplete} 
             />
           </motion.div>

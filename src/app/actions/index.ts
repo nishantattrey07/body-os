@@ -26,6 +26,7 @@ export { createExercise, deleteExercise, getExerciseCategories, getExercises, up
 // Routines
 export {
     addExerciseToRoutine,
+    batchUpdateRoutineExercises,
     createRoutine,
     deleteRoutine,
     getRoutineById,

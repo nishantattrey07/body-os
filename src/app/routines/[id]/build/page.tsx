@@ -1,34 +1,35 @@
+
 "use client";
 
 import { getExercises } from "@/app/actions/exercises";
 import {
     addExerciseToRoutine,
+    batchUpdateRoutineExercises,
     getRoutineById,
-    removeExerciseFromRoutine,
-    updateRoutineExercise,
+    removeExerciseFromRoutine
 } from "@/app/actions/routines";
-import { motion } from "framer-motion";
+import { motion, Reorder } from "framer-motion";
 import { ArrowLeft, GripVertical, Plus, Save, Trash2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-interface Exercise {
-    id: string;
-    name: string;
-    category: string;
-    defaultSets: number;
-    defaultReps: number;
-    isSystem: boolean;
-}
-
-interface RoutineExercise {
+// Types
+type RoutineExercise = {
     id: string;
     order: number;
     sets: number;
     reps: number;
     restSeconds: number;
     exercise: Exercise;
-}
+};
+
+type Exercise = {
+    id: string;
+    name: string;
+    category: string;
+    defaultSets: number;
+    defaultReps: number;
+};
 
 export default function RoutineBuilderPage() {
     const router = useRouter();
@@ -36,9 +37,12 @@ export default function RoutineBuilderPage() {
     const routineId = params.id as string;
 
     const [routine, setRoutine] = useState<any>(null);
+    const [localExercises, setLocalExercises] = useState<RoutineExercise[]>([]);
     const [availableExercises, setAvailableExercises] = useState<Exercise[]>([]);
     const [showExercisePicker, setShowExercisePicker] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [isDirty, setIsDirty] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -51,18 +55,50 @@ export default function RoutineBuilderPage() {
             getExercises(),
         ]);
         setRoutine(routineData);
+        if (routineData?.exercises) {
+            setLocalExercises(routineData.exercises);
+        }
         setAvailableExercises(exercisesData as Exercise[]);
         setLoading(false);
+        setIsDirty(false);
+    };
+
+    const handleSave = async () => {
+        if (!isDirty) return;
+        setIsSaving(true);
+        try {
+            await batchUpdateRoutineExercises(
+                routineId,
+                localExercises.map((e, idx) => ({
+                    id: e.id,
+                    order: idx + 1,
+                    sets: e.sets,
+                    reps: e.reps,
+                    restSeconds: e.restSeconds,
+                }))
+            );
+            await loadData(); // Reload to get fresh state
+        } catch (error) {
+            alert("Failed to save changes");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleReorder = (newOrder: RoutineExercise[]) => {
+        setLocalExercises(newOrder);
+        setIsDirty(true);
     };
 
     const handleAddExercise = async (exercise: Exercise) => {
         try {
+            // Immediate server action for adding (easier than optimistic for new IDs)
             await addExerciseToRoutine(routineId, exercise.id, {
                 sets: exercise.defaultSets,
                 reps: exercise.defaultReps,
                 restSeconds: 90,
             });
-            await loadData();
+            await loadData(); // Reloads everything
             setShowExercisePicker(false);
         } catch (error) {
             alert("Failed to add exercise");
@@ -74,21 +110,19 @@ export default function RoutineBuilderPage() {
             await removeExerciseFromRoutine(routineExerciseId);
             await loadData();
         } catch (error) {
-            alert("Failed to remove exercise");
+             alert("Failed to remove exercise");
         }
     };
 
-    const handleUpdateConfig = async (
+    const handleUpdateConfig = (
         routineExerciseId: string,
         field: "sets" | "reps" | "restSeconds",
         value: number
     ) => {
-        try {
-            await updateRoutineExercise(routineExerciseId, { [field]: value });
-            await loadData();
-        } catch (error) {
-            alert("Failed to update exercise");
-        }
+        setLocalExercises(prev => prev.map(e => 
+            e.id === routineExerciseId ? { ...e, [field]: value } : e
+        ));
+        setIsDirty(true);
     };
 
     if (loading) {
@@ -110,31 +144,33 @@ export default function RoutineBuilderPage() {
     return (
         <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-20">
             {/* Header */}
-            <div className="bg-white border-b border-zinc-100 px-6 py-4 sticky top-0 z-30">
-                <div className="flex items-center justify-between mb-2">
+            <div className="bg-white border-b border-zinc-100 px-6 py-4 sticky top-0 z-30 flex items-center justify-between">
+                <div className="flex items-center gap-2">
                     <button
                         onClick={() => router.back()}
                         className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
                     >
                         <ArrowLeft size={24} />
                     </button>
-                    <button
-                        onClick={() => router.back()}
-          className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold flex items-center gap-2"
-                    >
-                        <Save size={18} />
-                        Done
-                    </button>
+                    <h1 className="text-xl font-bold font-heading truncate max-w-[200px]">{routine.name}</h1>
                 </div>
-                <h1 className="text-2xl font-bold font-heading">{routine.name}</h1>
-                {routine.description && (
-                    <p className="text-sm text-zinc-600 mt-1">{routine.description}</p>
-                )}
+                <button
+                    onClick={handleSave}
+                    disabled={!isDirty || isSaving}
+                    className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-all ${
+                        isDirty 
+                            ? "bg-green-500 hover:bg-green-600 text-white shadow-md transform hover:scale-105" 
+                            : "bg-zinc-200 text-zinc-400 cursor-not-allowed"
+                    }`}
+                >
+                    <Save size={18} />
+                    {isSaving ? "Saving..." : "Save"}
+                </button>
             </div>
 
             {/* Exercise List */}
             <div className="px-6 py-6 space-y-3">
-                {routine.exercises.length === 0 ? (
+                {localExercises.length === 0 ? (
                     <div className="text-center py-12">
                         <p className="text-zinc-500 mb-4">No exercises added yet</p>
                         <button
@@ -145,17 +181,18 @@ export default function RoutineBuilderPage() {
                         </button>
                     </div>
                 ) : (
-                    <>
-                        {routine.exercises.map((re: RoutineExercise, idx: number) => (
-                            <motion.div
+                    <Reorder.Group axis="y" values={localExercises} onReorder={handleReorder} className="space-y-3">
+                        {localExercises.map((re: RoutineExercise, idx: number) => (
+                            <Reorder.Item
                                 key={re.id}
+                                value={re}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="bg-white rounded-2xl border-2 border-zinc-100 p-4"
+                                className="bg-white rounded-2xl border-2 border-zinc-100 p-4 shadow-sm touch-none"
                             >
                                 <div className="flex items-start gap-3">
-                                    {/* Order */}
-                                    <div className="flex flex-col items-center gap-1 pt-1">
+                                    {/* Order / Drag Handle */}
+                                    <div className="flex flex-col items-center gap-1 pt-1 cursor-grab active:cursor-grabbing p-1">
                                         <GripVertical size={20} className="text-zinc-300" />
                                         <span className="text-sm font-bold text-zinc-400">{idx + 1}</span>
                                     </div>
@@ -214,7 +251,7 @@ export default function RoutineBuilderPage() {
                                                         )
                                                     }
                                                     min="0"
-                                                    step="15"
+                                                    step="5"
                                                     className="w-full px-3 py-2 rounded-lg border-2 border-zinc-200 focus:border-orange-500 outline-none font-bold text-center"
                                                 />
                                             </div>
@@ -229,24 +266,25 @@ export default function RoutineBuilderPage() {
                                         <Trash2 size={18} />
                                     </button>
                                 </div>
-                            </motion.div>
+                            </Reorder.Item>
                         ))}
-
-                        {/* Add Exercise Button */}
-                        <button
-                            onClick={() => setShowExercisePicker(true)}
-                            className="w-full py-4 border-2 border-dashed border-zinc-300 rounded-2xl text-zinc-500 font-semibold hover:border-orange-500 hover:text-orange-500 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Plus size={20} />
-                            Add Exercise
-                        </button>
-                    </>
+                    </Reorder.Group>
                 )}
             </div>
 
+            {/* Add Exercise Button (Fixed at bottom) */}
+             <div className="fixed bottom-6 right-6 z-40">
+                 <button
+                    onClick={() => setShowExercisePicker(true)}
+                    className="w-14 h-14 bg-orange-500 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-orange-600 hover:scale-105 transition-all"
+                >
+                    <Plus size={28} />
+                </button>
+             </div>
+
             {/* Exercise Picker Modal */}
             {showExercisePicker && (
-                <div className="fixed inset-0 bg-black/50 z-40 flex items-end">
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
                     <motion.div
                         initial={{ y: "100%" }}
                         animate={{ y: 0 }}

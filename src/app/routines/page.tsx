@@ -86,15 +86,7 @@ export default function RoutinesPage() {
                     <ArrowLeft size={24} />
                 </button>
                 <h1 className="text-xl font-bold font-heading">Workout Routines</h1>
-                <button
-                    onClick={() => {
-                        setEditingRoutine(null);
-                        setIsFormOpen(true);
-                    }}
-                    className="p-2 bg-orange-500 hover:bg-orange-600 text-white rounded-full transition-colors"
-                >
-                    <Plus size={24} />
-                </button>
+                {/* The plus button was here and has been removed */}
             </div>
 
             {/* Routines Grid */}
