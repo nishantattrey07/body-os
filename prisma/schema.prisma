@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String?        @unique
+  name          String?
+  dailyLogs     DailyLog[]
+  nutritionLogs NutritionLog[]
+  workoutLogs   WorkoutLog[]
+}
+
+model DailyLog {
+  id           String   @id @default(uuid())
+  date         DateTime @unique // One log per day mostly
+  weight       Float?
+  sleepHours   Float?
+  bloated      Boolean  @default(false)
+  
+  // Computed/Cached aggregates
+  proteinTotal Float    @default(0)
+  waterTotal   Float    @default(0)
+  
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+}
+
+model InventoryItem {
+  id             String         @id @default(uuid())
+  name           String         @unique 
+  icon           String         // Emoji or lucide name
+  proteinPerUnit Float
+  caloriesPerUnit Float
+  volumePerUnit  Float          // e.g. 250ml or 50g
+  defaultUnit    String         // "scoop", "g", "ml"
+  
+  logs           NutritionLog[]
+}
+
+model NutritionLog {
+  id              String        @id @default(uuid())
+  timestamp       DateTime      @default(now())
+  qty             Float         // Multiplier of unit
+  
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+}
+
+model Exercise {
+  id             String       @id @default(uuid())
+  name           String       @unique
+  defaultReps    Int
+  defaultSets    Int
+  category       String       // Push, Pull, Legs, Core
+  
+  // Smart Swap Logic for Pain (Self-relation)
+  swapExerciseId String?
+  swapExercise   Exercise?    @relation("PainSwap", fields: [swapExerciseId], references: [id])
+  parentOf       Exercise[]   @relation("PainSwap")
+
+  workoutLogs    WorkoutLog[]
+}
+
+model WorkoutLog {
+  id          String   @id @default(uuid())
+  date        DateTime @default(now())
+  
+  exerciseId  String
+  exercise    Exercise @relation(fields: [exerciseId], references: [id])
+  
+  reps        Int
+  weight      Float?
+  painLevel   Int?     // 0-10
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+}
