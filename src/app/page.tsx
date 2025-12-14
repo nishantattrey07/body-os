@@ -57,20 +57,22 @@ export default function Home() {
             className="flex-1 flex flex-col items-center w-full h-full"
           >
             {/* Header */}
-            <div className="w-full flex justify-between items-center z-10 mb-8 mt-4">
-              <h1 className="text-4xl font-bold uppercase tracking-tighter text-foreground font-heading flex flex-col">
-                Body OS
-                <button 
-                  onClick={reset}
-                  className="text-xs text-zinc-300 font-medium tracking-wide uppercase hover:text-primary transition-colors text-left mt-1"
-                >
-                  Recalibrate
-                </button>
-              </h1>
-              <StatusIndicator 
-                status={systemMode === "optimized" ? "ready" : "warning"} 
-                label={systemMode === "optimized" ? "System Ready" : "Energy Saver"}
-              />
+            <div className="w-full flex flex-col z-10 mb-8 mt-4">
+              <div className="flex justify-between items-center w-full gap-3">
+                <h1 className="text-4xl font-bold uppercase tracking-tighter text-foreground font-heading">
+                  Body OS
+                </h1>
+                <StatusIndicator 
+                  status={systemMode === "optimized" ? "ready" : "warning"} 
+                  label={systemMode === "optimized" ? "System Ready" : "Energy Saver"}
+                />
+              </div>
+              <button 
+                onClick={reset}
+                className="text-xs text-zinc-300 font-medium tracking-wide uppercase hover:text-primary transition-colors text-left mt-1"
+              >
+                Recalibrate
+              </button>
             </div>
 
             {/* Core Vitals */}

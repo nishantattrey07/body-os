@@ -15,9 +15,9 @@ export function StatusIndicator({ status, label }: StatusIndicatorProps) {
   const config = statusConfig[status];
 
   return (
-    <div className="flex items-center gap-3 rounded-full bg-white px-4 py-2 shadow-sm border border-zinc-100">
-      <span className={cn("h-3 w-3 rounded-full animate-pulse", config.color)}></span>
-      <span className={cn("text-lg font-bold uppercase tracking-widest font-heading", config.text)}>
+    <div className="flex items-center gap-2 rounded-full bg-white px-3 py-1 shadow-sm border border-zinc-100">
+      <span className={cn("h-2 w-2 rounded-full animate-pulse", config.color)}></span>
+      <span className={cn("text-xs font-bold uppercase tracking-widest font-heading", config.text)}>
         {label || config.defaultLabel}
       </span>
     </div>
