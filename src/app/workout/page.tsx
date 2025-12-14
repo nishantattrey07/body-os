@@ -58,25 +58,47 @@ export default function WorkoutPage() {
   return (
     <div className="min-h-screen bg-background p-6 max-w-md mx-auto flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <button 
-          onClick={() => {
-            if (stage === 'select') {
-              router.back();
-            } else if (stage === 'warmup') {
-              setStage('select');
-            } else {
-              setStage('warmup');
-            }
-          }}
-          className="p-2 rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors"
-        >
-          <ArrowLeft className="text-zinc-600" />
-        </button>
-        <h1 className="text-3xl font-bold uppercase tracking-tighter text-foreground font-heading">
-          {stage === 'select' ? 'Select Routine' : stage === 'warmup' ? 'Warmup' : 'Workout'}
-        </h1>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => {
+              if (stage === 'select') {
+                router.back();
+              } else if (stage === 'warmup') {
+                setStage('select');
+              } else {
+                setStage('warmup');
+              }
+            }}
+            className="p-2 rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors"
+          >
+            <ArrowLeft className="text-zinc-600" />
+          </button>
+          <h1 className="text-3xl font-bold uppercase tracking-tighter text-foreground font-heading">
+            {stage === 'select' ? 'Select Routine' : stage === 'warmup' ? 'Warmup' : 'Workout'}
+          </h1>
+        </div>
       </div>
+
+      {/* Management Links (Only visible in select stage) */}
+      {stage === 'select' && (
+        <div className="flex gap-4 mb-6">
+          <button
+            onClick={() => router.push('/routines')}
+            className="flex-1 py-3 px-4 bg-orange-100 text-orange-700 rounded-2xl font-bold text-sm hover:bg-orange-200 transition-colors flex items-center justify-center gap-2"
+          >
+            <Dumbbell size={18} />
+            Manage Routines
+          </button>
+          <button
+            onClick={() => router.push('/exercises')}
+            className="flex-1 py-3 px-4 bg-zinc-100 text-zinc-700 rounded-2xl font-bold text-sm hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
+          >
+            <Dumbbell size={18} />
+            Exercise Library
+          </button>
+        </div>
+      ) }
 
       {/* Stages */}
       <AnimatePresence mode="wait">

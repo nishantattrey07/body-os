@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/exercises";
 import { ExerciseCard } from "@/components/exercises/ExerciseCard";
 import { ExerciseForm } from "@/components/exercises/ExerciseForm";
+import { motion } from "framer-motion";
 import { ArrowLeft, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -166,6 +167,19 @@ export default function ExercisesPage() {
                     </div>
                 )}
             </div>
+
+            {/* Floating Action Button (FAB) for Mobile */}
+            <motion.button
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                onClick={() => {
+                    setEditingExercise(null);
+                    setIsFormOpen(true);
+                }}
+                className="fixed bottom-6 right-6 w-14 h-14 bg-orange-500 text-white rounded-full shadow-lg flex items-center justify-center z-40 hover:bg-orange-600 hover:scale-105 transition-all"
+            >
+                <Plus size={28} />
+            </motion.button>
 
             {/* Exercise Form Modal */}
             <ExerciseForm

@@ -3,6 +3,7 @@
 import { createRoutine, deleteRoutine, getRoutines, updateRoutine } from "@/app/actions/routines";
 import { RoutineCard } from "@/components/routines/RoutineCard";
 import { RoutineForm } from "@/components/routines/RoutineForm";
+import { motion } from "framer-motion";
 import { ArrowLeft, Dumbbell, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -125,6 +126,19 @@ export default function RoutinesPage() {
                     </div>
                 )}
             </div>
+
+            {/* Floating Action Button (FAB) for Mobile */}
+            <motion.button
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                onClick={() => {
+                    setEditingRoutine(null);
+                    setIsFormOpen(true);
+                }}
+                className="fixed bottom-6 right-6 w-14 h-14 bg-orange-500 text-white rounded-full shadow-lg flex items-center justify-center z-40 hover:bg-orange-600 hover:scale-105 transition-all"
+            >
+                <Plus size={28} />
+            </motion.button>
 
             {/* Routine Form Modal */}
             <RoutineForm

@@ -18,6 +18,7 @@ export async function getExercises() {
                 OR: [
                     { isSystem: true }, // System exercises
                     { userId: session.user.id }, // User's exercises
+                    { userId: null }, // Legacy system exercises (safety fallback)
                 ],
             },
             orderBy: [
