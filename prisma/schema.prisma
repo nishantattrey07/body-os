@@ -42,10 +42,14 @@ model User {
   updatedAt     DateTime @updatedAt
   
   // Relations
-  accounts      Account[]
-  dailyLogs     DailyLog[]
-  nutritionLogs NutritionLog[]
-  workoutLogs   WorkoutLog[]
+  accounts       Account[]
+  dailyLogs      DailyLog[]
+  nutritionLogs  NutritionLog[]
+  workoutLogs    WorkoutLog[]
+  warmupLogs     WarmupLog[]
+  waterLogs      WaterLog[]
+  progressPhotos ProgressPhoto[]
+  deadHangLogs   DeadHangLog[]
 }
 
 model DailyLog {
@@ -53,35 +57,48 @@ model DailyLog {
   date           DateTime
   weight         Float?
   sleepHours     Float?
+  sleepQuality   Int?     // 1-5 rating
+  mood           String?  // "Good", "Low", "Tired"
   bloated        Boolean  @default(false)
   
   // Computed/Cached aggregates
   proteinTotal   Float    @default(0)
   waterTotal     Float    @default(0)
+  carbsTotal     Float    @default(0)
+  fatTotal       Float    @default(0)
+  caloriesTotal  Float    @default(0)
   
   userId         String
   user           User     @relation(fields: [userId], references: [id])
+  
+  // Relations
+  dailyReview    DailyReview?
   
   @@unique([userId, date])
   @@index([date])
 }
 
 model InventoryItem {
-  id             String         @id @default(uuid())
-  name           String         @unique 
-  icon           String         // Emoji or lucide name
-  proteinPerUnit Float
+  id              String         @id @default(uuid())
+  name            String         @unique 
+  icon            String         // Emoji or lucide name
+  proteinPerUnit  Float
+  carbsPerUnit    Float          @default(0)
+  fatPerUnit      Float          @default(0)
   caloriesPerUnit Float
-  volumePerUnit  Float          // e.g. 250ml or 50g
-  defaultUnit    String         // "scoop", "g", "ml"
+  volumePerUnit   Float          // e.g. 250ml or 50g
+  defaultUnit     String         // "scoop", "g", "ml"
+  isActive        Boolean        @default(true)  // For smart disable logic
+  maxDailyQty     Float?         // Optional daily limit
   
-  logs           NutritionLog[]
+  logs            NutritionLog[]
 }
 
 model NutritionLog {
   id              String        @id @default(uuid())
   timestamp       DateTime      @default(now())
   qty             Float         // Multiplier of unit
+  mealType        String?       // "breakfast", "lunch", "dinner", "snack"
   
   inventoryItemId String
   inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
@@ -99,10 +116,11 @@ model Exercise {
   
   // Smart Swap Logic for Pain (Self-relation)
   swapExerciseId String?
-  swapExercise   Exercise?    @relation("PainSwap", fields: [swapExerciseId], references: [id])
-  parentOf       Exercise[]   @relation("PainSwap")
+  swapExercise   Exercise?         @relation("PainSwap", fields: [swapExerciseId], references: [id])
+  parentOf       Exercise[]        @relation("PainSwap")
 
   workoutLogs    WorkoutLog[]
+  routineExercises RoutineExercise[]
 }
 
 model WorkoutLog {
@@ -118,4 +136,79 @@ model WorkoutLog {
   
   userId      String
   user        User     @relation(fields: [userId], references: [id])
+}
+
+// ============================================
+// NEW MODELS FOR BODY OS
+// ============================================
+
+model WarmupChecklist {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  order       Int
+  description String?
+  logs        WarmupLog[]
+}
+
+model WarmupLog {
+  id                String          @id @default(uuid())
+  date              DateTime        @default(now())
+  warmupChecklistId String
+  warmupChecklist   WarmupChecklist @relation(fields: [warmupChecklistId], references: [id])
+  completed         Boolean         @default(false)
+  userId            String
+  user              User            @relation(fields: [userId], references: [id])
+  
+  @@unique([userId, warmupChecklistId, date])
+}
+
+model WaterLog {
+  id        String   @id @default(uuid())
+  timestamp DateTime @default(now())
+  amount    Float    // in ml
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model WorkoutRoutine {
+  id          String            @id @default(uuid())
+  name        String            @unique
+  description String?
+  exercises   RoutineExercise[]
+}
+
+model RoutineExercise {
+  id         String         @id @default(uuid())
+  order      Int
+  routineId  String
+  routine    WorkoutRoutine @relation(fields: [routineId], references: [id])
+  exerciseId String
+  exercise   Exercise       @relation(fields: [exerciseId], references: [id])
+}
+
+model ProgressPhoto {
+  id        String   @id @default(uuid())
+  date      DateTime @default(now())
+  imagePath String
+  type      String   // "front", "side", "back"
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model DeadHangLog {
+  id      String   @id @default(uuid())
+  date    DateTime @default(now())
+  seconds Int
+  userId  String
+  user    User     @relation(fields: [userId], references: [id])
+}
+
+model DailyReview {
+  id          String   @id @default(uuid())
+  date        DateTime
+  tookSoya    Boolean?
+  elbowStatus String?  // "Good", "Mild Pain", "Bad"
+  notes       String?
+  dailyLogId  String   @unique
+  dailyLog    DailyLog @relation(fields: [dailyLogId], references: [id])
 }
