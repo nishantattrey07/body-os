@@ -158,6 +158,7 @@ export default function WorkoutPage() {
             </div>
 
             <ExerciseLogger 
+              key={currentExercise.id}
               exercise={currentExercise} 
               onComplete={handleExerciseComplete} 
             />

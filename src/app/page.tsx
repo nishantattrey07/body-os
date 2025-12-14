@@ -134,6 +134,7 @@ export default function Home() {
               </div>
             </div>
 
+
             {/* Action Buttons */}
             <div className="w-full z-10 mt-8 mb-8 space-y-4">
               <BigButton 
@@ -149,6 +150,14 @@ export default function Home() {
                 className="bg-zinc-800 text-white hover:bg-zinc-700"
               >
                 Start Workout
+              </BigButton>
+
+              <BigButton 
+                variant="secondary" 
+                onClick={() => router.push("/progress")}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Track Progress
               </BigButton>
             </div>
           </motion.div>

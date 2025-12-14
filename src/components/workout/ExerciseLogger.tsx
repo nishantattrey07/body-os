@@ -2,7 +2,7 @@
 
 import { logExercise } from "@/app/actions/workout";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, Minus, Plus } from "lucide-react";
+import { AlertTriangle, CheckCircle, Minus, Plus } from "lucide-react";
 import { useState } from "react";
 
 interface ExerciseLoggerProps {
@@ -17,6 +17,8 @@ export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
   const [logging, setLogging] = useState(false);
   const [restTimer, setRestTimer] = useState<number | null>(null);
   const [swapSuggestion, setSwapSuggestion] = useState<any>(null);
+  const [currentSet, setCurrentSet] = useState(1);
+  const totalSets = exercise.defaultSets || 3;
 
   const handleLogSet = async () => {
     if (logging) return;
@@ -33,20 +35,27 @@ export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
       if (result.swapSuggestion) {
         setSwapSuggestion(result.swapSuggestion);
       } else {
-        // Start rest timer (90 seconds)
-        setRestTimer(90);
-        const timer = setInterval(() => {
-          setRestTimer(prev => {
-            if (prev === null || prev <= 1) {
-              clearInterval(timer);
-              return null;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-        
-        // Show pain slider for next set
-        setShowPainSlider(true);
+        // Check if this was the last set
+        if (currentSet >= totalSets) {
+          // Exercise complete - move to next
+          setTimeout(() => onComplete(), 500);
+        } else {
+          // More sets to go - start rest timer
+          setCurrentSet(prev => prev + 1);
+          setRestTimer(90);
+          const timer = setInterval(() => {
+            setRestTimer(prev => {
+              if (prev === null || prev <= 1) {
+                clearInterval(timer);
+                return null;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+          
+          // Show pain slider for next set
+          setShowPainSlider(true);
+        }
       }
     } catch (error: any) {
       console.error("Failed to log exercise:", error);
@@ -61,8 +70,8 @@ export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
   };
 
   const handleAcceptSwap = () => {
-    // User acknowledges the swap
-    onComplete(); // Move to next exercise or swap
+    // User acknowledges the swap - move to next exercise
+    onComplete();
   };
 
   return (
@@ -73,8 +82,24 @@ export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
           {exercise.name}
         </h2>
         <p className="text-zinc-400 text-sm mt-1">
-          {exercise.defaultSets} sets × {exercise.defaultReps} reps
+          Set {currentSet} of {totalSets} × {exercise.defaultReps} reps
         </p>
+      </div>
+
+      {/* Set Progress Indicator */}
+      <div className="flex justify-center gap-2">
+        {Array.from({ length: totalSets }).map((_, index) => (
+          <div
+            key={index}
+            className={`h-2 w-12 rounded-full transition-colors ${
+              index < currentSet - 1
+                ? 'bg-green-500'
+                : index === currentSet - 1
+                ? 'bg-blue-500'
+                : 'bg-zinc-200'
+            }`}
+          />
+        ))}
       </div>
 
       {/* Rep Counter */}
@@ -154,7 +179,18 @@ export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
         whileTap={{ scale: 0.98 }}
         className="w-full h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {logging ? "Logging..." : restTimer !== null ? `Rest (${restTimer}s)` : "Log Set"}
+        {logging ? (
+          "Logging..."
+        ) : restTimer !== null ? (
+          <>Rest ({restTimer}s)</>
+        ) : currentSet > totalSets ? (
+          <>
+            <CheckCircle size={20} />
+            Exercise Complete
+          </>
+        ) : (
+          <>Log Set {currentSet}/{totalSets}</>
+        )}
       </motion.button>
 
       {/* Swap Alert Modal */}
@@ -204,7 +240,7 @@ export function ExerciseLogger({ exercise, onComplete }: ExerciseLoggerProps) {
                 onClick={handleAcceptSwap}
                 className="w-full h-14 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold uppercase tracking-wider"
               >
-                Got It
+                Got It - Next Exercise
               </button>
             </motion.div>
           </motion.div>
