@@ -84,9 +84,9 @@ export async function getTodayWarmupProgress() {
 }
 
 /**
- * Mark warmup item as complete
+ * Toggle warmup item completion state
  */
-export async function completeWarmupItem(warmupChecklistId: string) {
+export async function toggleWarmupItem(warmupChecklistId: string, completed: boolean) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
@@ -104,13 +104,13 @@ export async function completeWarmupItem(warmupChecklistId: string) {
                 },
             },
             update: {
-                completed: true,
+                completed,
             },
             create: {
                 userId: session.user.id,
                 warmupChecklistId,
                 date: today,
-                completed: true,
+                completed,
             },
             include: {
                 warmupChecklist: true,
@@ -119,9 +119,17 @@ export async function completeWarmupItem(warmupChecklistId: string) {
 
         return log;
     } catch (error) {
-        console.error("Failed to complete warmup item:", error);
+        console.error("Failed to toggle warmup item:", error);
         throw error;
     }
+}
+
+/**
+ * DEPRECATED: Use toggleWarmupItem instead
+ * Mark warmup item as complete
+ */
+export async function completeWarmupItem(warmupChecklistId: string) {
+    return toggleWarmupItem(warmupChecklistId, true);
 }
 
 /**

@@ -17,7 +17,7 @@ export { getTodayWaterLogs, getWaterTotal, logWater } from './water';
 // Workout
 export {
     completeWarmupItem, getTodayWarmupProgress, getTodayWorkoutLogs, getWarmupChecklist, getWorkoutHistory, getWorkoutRoutines, isWarmupComplete,
-    logExercise
+    logExercise, toggleWarmupItem
 } from './workout';
 
 // Progress

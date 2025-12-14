@@ -1,6 +1,6 @@
 "use client";
 
-import { completeWarmupItem, getTodayWarmupProgress, getWarmupChecklist, isWarmupComplete } from "@/app/actions/workout";
+import { getTodayWarmupProgress, getWarmupChecklist, isWarmupComplete, toggleWarmupItem } from "@/app/actions/workout";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, Lock, Unlock } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -42,12 +42,39 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
     }
   };
 
-  const handleCheck = async (warmupId: string) => {
+  const handleToggle = async (warmupId: string) => {
+    const isCurrentlyCompleted = completed.has(warmupId);
+    const newState = !isCurrentlyCompleted;
+    
+    // OPTIMISTIC UPDATE: Update UI immediately for instant feedback
+    setCompleted(prev => {
+      const newSet = new Set(prev);
+      if (newState) {
+        newSet.add(warmupId);
+      } else {
+        newSet.delete(warmupId);
+      }
+      return newSet;
+    });
+    
+    // Update backend in background
     try {
-      await completeWarmupItem(warmupId);
-      setCompleted(prev => new Set([...prev, warmupId]));
+      await toggleWarmupItem(warmupId, newState);
     } catch (error) {
-      console.error("Failed to complete warmup item:", error);
+      console.error("Failed to toggle warmup item:", error);
+      
+      // ROLLBACK: Revert optimistic update on error
+      setCompleted(prev => {
+        const newSet = new Set(prev);
+        if (newState) {
+          newSet.delete(warmupId); // Was added optimistically, remove it
+        } else {
+          newSet.add(warmupId); // Was removed optimistically, add it back
+        }
+        return newSet;
+      });
+      
+      alert("Failed to update warmup. Please try again.");
     }
   };
 
@@ -116,8 +143,7 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
         {warmups.map((warmup, index) => (
           <motion.button
             key={warmup.id}
-            onClick={() => !completed.has(warmup.id) && handleCheck(warmup.id)}
-            disabled={completed.has(warmup.id)}
+            onClick={() => handleToggle(warmup.id)}
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.1 }}
