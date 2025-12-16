@@ -1,7 +1,8 @@
 "use client";
 
+import { BigButton } from "@/components/ui/BigButton";
 import { motion } from "framer-motion";
-import { AlertCircle, Play, RefreshCw, X } from "lucide-react";
+import { Play, RefreshCw, Timer, X } from "lucide-react";
 
 interface ResumeModalProps {
   session: {
@@ -32,9 +33,9 @@ export function ResumeModal({ session, onResume, onAbandon, onStartFresh }: Resu
   
   let timeAgo = "";
   if (diffHours > 0) {
-    timeAgo = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    timeAgo = `${diffHours} hr${diffHours > 1 ? 's' : ''} ago`;
   } else if (diffMins > 0) {
-    timeAgo = `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    timeAgo = `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
   } else {
     timeAgo = "just now";
   }
@@ -44,82 +45,87 @@ export function ResumeModal({ session, onResume, onAbandon, onStartFresh }: Resu
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
     >
       <motion.div
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        className="bg-white rounded-3xl w-full max-w-md overflow-hidden"
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        className="w-full max-w-sm flex flex-col items-center gap-6 bg-white p-8 rounded-[3rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] border border-white/50"
       >
         {/* Header */}
-        <div className="p-6 bg-amber-50 border-b border-amber-200">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
-              <AlertCircle className="text-amber-600" size={24} />
+        <div className="text-center space-y-2">
+            <div className="flex justify-center mb-4">
+                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Timer className="text-primary w-8 h-8 ml-0.5" /> {/* Optically centered */}
+                </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-amber-900">Unfinished Workout</h2>
-              <p className="text-sm text-amber-700">Started {timeAgo}</p>
-            </div>
-          </div>
+          <h2 className="text-4xl font-bold uppercase tracking-tighter font-heading text-primary leading-none">
+            Unfinished Workout
+          </h2>
+          <p className="text-zinc-400 font-medium text-sm tracking-wide flex items-center justify-center gap-2">
+            Started {timeAgo}
+          </p>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-4">
-          {/* Routine Name */}
-          <div className="text-center">
-            <p className="text-sm text-zinc-500 uppercase tracking-wider">Routine</p>
-            <p className="text-2xl font-bold text-foreground">
+        {/* Routine Info & Progress */}
+        <div className="w-full space-y-4 bg-zinc-50 rounded-3xl p-6 border border-zinc-100/50">
+          <div className="text-center space-y-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-heading">
+                Current Routine
+            </p>
+            <p className="text-2xl font-bold uppercase tracking-tight font-heading text-foreground">
               {session.routine?.name || "Custom Workout"}
             </p>
           </div>
 
-          {/* Progress */}
-          <div className="bg-zinc-50 rounded-2xl p-4 space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-zinc-500">Progress</span>
-              <span className="font-bold text-foreground">
-                {completedCount}/{totalCount} exercises
+          <div className="space-y-2">
+            <div className="flex justify-between items-center px-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 font-heading">Progress</span>
+              <span className="text-sm font-bold font-heading text-primary">
+                {completedCount}<span className="text-zinc-300 mx-0.5">/</span>{totalCount}
               </span>
             </div>
-            <div className="w-full bg-zinc-200 rounded-full h-2">
-              <div 
-                className="bg-amber-500 h-2 rounded-full transition-all"
-                style={{ width: `${(completedCount / totalCount) * 100}%` }}
+            <div className="w-full bg-zinc-200 rounded-full h-1.5 overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${(completedCount / totalCount) * 100}%` }}
+                className="bg-primary h-full rounded-full"
               />
             </div>
-            {currentExercise && (
-              <p className="text-sm text-zinc-600">
-                Next up: <span className="font-medium">{currentExercise.exercise.name}</span>
-              </p>
-            )}
           </div>
+
+          {currentExercise && (
+             <div className="text-center pt-2">
+                <p className="text-xs text-zinc-400 mb-1">Up Next</p>
+                <p className="text-sm font-bold text-zinc-700">{currentExercise.exercise.name}</p>
+             </div>
+          )}
         </div>
 
         {/* Actions */}
-        <div className="p-6 border-t border-zinc-100 space-y-3">
-          <button
+        <div className="w-full space-y-3">
+          <BigButton 
             onClick={onResume}
-            className="w-full h-14 rounded-2xl bg-gradient-to-r from-green-500 to-green-600 text-white font-bold flex items-center justify-center gap-2 shadow-lg"
+            className="w-full shadow-[0_10px_30px_-10px_rgba(239,68,68,0.4)] flex flex-row items-center justify-center gap-3 !text-2xl py-6"
           >
-            <Play size={20} />
-            Resume Workout
-          </button>
+            <Play className="w-6 h-6 fill-current shrink-0" />
+            <span className="whitespace-nowrap mt-1">Resume Session</span>
+          </BigButton>
           
-          <div className="flex gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={onAbandon}
-              className="flex-1 h-12 rounded-2xl bg-red-100 text-red-600 font-medium flex items-center justify-center gap-2"
+              className="h-14 rounded-2xl bg-zinc-100 hover:bg-red-50 text-zinc-500 hover:text-red-500 font-bold text-sm uppercase tracking-wide transition-colors flex items-center justify-center gap-2 font-heading group"
             >
-              <X size={18} />
-              Abandon
+              <X size={18} className="group-hover:scale-110 transition-transform" />
+              <span className="mt-0.5">Abandon</span>
             </button>
             <button
               onClick={onStartFresh}
-              className="flex-1 h-12 rounded-2xl bg-zinc-100 text-zinc-600 font-medium flex items-center justify-center gap-2"
+              className="h-14 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-700 font-bold text-sm uppercase tracking-wide transition-colors flex items-center justify-center gap-2 font-heading group"
             >
-              <RefreshCw size={18} />
-              Start Fresh
+              <RefreshCw size={18} className="group-hover:rotate-180 transition-transform duration-500" />
+              <span className="mt-0.5">Restart</span>
             </button>
           </div>
         </div>

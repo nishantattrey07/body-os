@@ -16,13 +16,15 @@ interface ExerciseLoggerProps {
 export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: ExerciseLoggerProps) {
   const [reps, setReps] = useState(exercise.defaultReps || 10);
   const [painLevel, setPainLevel] = useState(0);
-  const [showPainSlider, setShowPainSlider] = useState(false);
   const [selectedBlockerId, setSelectedBlockerId] = useState<string | null>(null);
   const [logging, setLogging] = useState(false);
   const [restTimer, setRestTimer] = useState<number | null>(null);
   const [swapSuggestion, setSwapSuggestion] = useState<any>(null);
   const [currentSet, setCurrentSet] = useState(1);
   const totalSets = exercise.defaultSets || 3;
+  
+  // Always show pain slider so it's available for single-set exercises too
+  const showPainSlider = true;
 
   const handleLogSet = async () => {
     if (logging) return;
@@ -75,12 +77,9 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
               });
             }, 1000);
         } else {
-            // No rest
+            // No rest - ensure timer is null so user can proceed immediately
             setRestTimer(null);
         }
-        
-        // Show pain slider for next set
-        setShowPainSlider(true);
       }
     } catch (error: any) {
       console.error("Failed to log exercise:", error);

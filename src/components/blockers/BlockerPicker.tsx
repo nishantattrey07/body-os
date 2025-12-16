@@ -2,8 +2,9 @@
 
 import { getActiveBlockers } from "@/app/actions/blockers";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, Plus, X } from "lucide-react";
+import { AlertTriangle, ChevronDown, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { CreateBlockerModal } from "./CreateBlockerModal";
 
 interface BlockerPickerProps {
   onSelect: (blockerId: string | null) => void;
@@ -14,6 +15,7 @@ export function BlockerPicker({ onSelect, selectedBlockerId }: BlockerPickerProp
   const [blockers, setBlockers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     loadBlockers();
@@ -32,60 +34,89 @@ export function BlockerPicker({ onSelect, selectedBlockerId }: BlockerPickerProp
 
   const selectedBlocker = blockers.find(b => b.id === selectedBlockerId);
 
-  if (loading) {
-    return null;
-  }
+  const getSeverityColor = (severity: number) => {
+    if (severity <= 3) return "text-emerald-600 bg-emerald-50";
+    if (severity <= 6) return "text-amber-600 bg-amber-50";
+    return "text-red-600 bg-red-50";
+  };
 
-  // If no active blockers, don't show the picker
-  if (blockers.length === 0) {
-    return null;
+  if (loading) {
+    return (
+      <div className="h-14 rounded-2xl bg-zinc-100 animate-pulse" />
+    );
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-amber-700">Is this pain from an existing issue?</p>
+    <div className="space-y-3">
+      {/* Section Label */}
+      <p className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+        Link to Body Issue
+      </p>
       
-      {/* Selected Blocker or Trigger Button */}
+      {/* Selected State OR Trigger */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full p-3 rounded-xl border-2 transition-all text-left flex items-center justify-between ${
+        className={`w-full p-4 rounded-2xl border transition-all text-left flex items-center justify-between ${
           selectedBlockerId
-            ? "border-red-400 bg-red-50"
-            : "border-amber-300 bg-white"
+            ? "border-red-200 bg-red-50/50"
+            : "border-zinc-200 bg-white hover:border-zinc-300"
         }`}
       >
-        <div className="flex items-center gap-2">
-          <AlertTriangle size={16} className={selectedBlockerId ? "text-red-600" : "text-amber-500"} />
-          <span className={selectedBlockerId ? "font-medium text-red-700" : "text-amber-600"}>
-            {selectedBlocker ? `${selectedBlocker.name} (${selectedBlocker.bodyPart})` : "Link to existing issue"}
-          </span>
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-xl ${
+            selectedBlockerId ? "bg-red-100" : "bg-zinc-100"
+          }`}>
+            <AlertTriangle 
+              size={18} 
+              className={selectedBlockerId ? "text-red-500" : "text-zinc-400"} 
+            />
+          </div>
+          <div>
+            {selectedBlocker ? (
+              <>
+                <p className="font-bold text-zinc-800">{selectedBlocker.name}</p>
+                <p className="text-xs text-zinc-500">{selectedBlocker.bodyPart}</p>
+              </>
+            ) : (
+              <p className="font-medium text-zinc-500">
+                {blockers.length > 0 ? "Select existing issue" : "No active issues"}
+              </p>
+            )}
+          </div>
         </div>
-        {selectedBlockerId ? (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(null);
-            }}
-            className="p-1 rounded-full hover:bg-red-200"
-          >
-            <X size={14} className="text-red-600" />
-          </button>
-        ) : (
-          <Plus size={16} className="text-amber-500" />
-        )}
+        
+        <div className="flex items-center gap-2">
+          {selectedBlockerId && (
+            <span
+              role="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelect(null);
+              }}
+              className="p-1.5 rounded-full bg-red-100 hover:bg-red-200 transition-colors cursor-pointer"
+            >
+              <X size={14} className="text-red-600" />
+            </span>
+          )}
+          <ChevronDown 
+            size={18} 
+            className={`text-zinc-400 transition-transform ${isOpen ? "rotate-180" : ""}`} 
+          />
+        </div>
       </button>
 
-      {/* Dropdown */}
+      {/* Dropdown Options */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="rounded-2xl border border-zinc-200 bg-white shadow-lg overflow-hidden"
           >
-            <div className="space-y-2 py-2">
+            <div className="divide-y divide-zinc-100">
+              {/* Existing Blockers */}
               {blockers.map((blocker) => (
                 <button
                   key={blocker.id}
@@ -94,41 +125,69 @@ export function BlockerPicker({ onSelect, selectedBlockerId }: BlockerPickerProp
                     onSelect(blocker.id);
                     setIsOpen(false);
                   }}
-                  className={`w-full p-3 rounded-xl border text-left transition-all ${
-                    selectedBlockerId === blocker.id
-                      ? "border-red-400 bg-red-50"
-                      : "border-zinc-200 bg-white hover:border-red-300 hover:bg-red-25"
+                  className={`w-full p-4 text-left transition-all flex items-center justify-between hover:bg-zinc-50 ${
+                    selectedBlockerId === blocker.id ? "bg-red-50" : ""
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-foreground">{blocker.name}</p>
-                      <p className="text-xs text-zinc-500">{blocker.bodyPart}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-zinc-100">
+                      <AlertTriangle size={16} className="text-zinc-500" />
                     </div>
-                    <span className={`text-lg font-bold ${
-                      blocker.severity <= 3 ? "text-green-600" : 
-                      blocker.severity <= 6 ? "text-amber-600" : 
-                      "text-red-600"
-                    }`}>
-                      {blocker.severity}/10
-                    </span>
+                    <div>
+                      <p className="font-semibold text-zinc-800">{blocker.name}</p>
+                      <p className="text-xs text-zinc-400">{blocker.bodyPart}</p>
+                    </div>
                   </div>
+                  <span className={`text-sm font-black px-2.5 py-1 rounded-xl ${getSeverityColor(blocker.severity)}`}>
+                    {blocker.severity}/10
+                  </span>
                 </button>
               ))}
               
-              {/* None Option */}
+              {/* Not Related Option */}
               <button
                 type="button"
                 onClick={() => {
                   onSelect(null);
                   setIsOpen(false);
                 }}
-                className="w-full p-3 rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-500 text-center hover:bg-zinc-100 transition-all"
+                className="w-full p-4 text-center text-sm font-medium text-zinc-500 hover:bg-zinc-50 transition-colors"
               >
-                Not related to existing issue
+                Not related to any issue
+              </button>
+              
+              {/* Create New Issue */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  setShowCreateModal(true);
+                }}
+                className="w-full p-4 text-left flex items-center gap-3 bg-zinc-50 hover:bg-zinc-100 transition-colors border-t border-zinc-200"
+              >
+                <div className="p-2 rounded-xl bg-zinc-800">
+                  <Plus size={16} className="text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-zinc-800">Report New Issue</p>
+                  <p className="text-xs text-zinc-400">Create a new body issue to track</p>
+                </div>
               </button>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Blocker Modal */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <CreateBlockerModal
+            onClose={() => setShowCreateModal(false)}
+            onCreated={() => {
+              setShowCreateModal(false);
+              loadBlockers();
+            }}
+          />
         )}
       </AnimatePresence>
     </div>

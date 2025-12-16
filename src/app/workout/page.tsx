@@ -2,13 +2,14 @@
 
 import { getWorkoutRoutines } from "@/app/actions/workout";
 import {
-    abandonWorkoutSession,
-    completeWorkoutSession,
-    getActiveSession,
-    getResumePosition,
-    startWorkoutSession
+  abandonWorkoutSession,
+  completeWorkoutSession,
+  getActiveSession,
+  getResumePosition,
+  startWorkoutSession
 } from "@/app/actions/workout-session";
 import { ExerciseLogger } from "@/components/workout/ExerciseLogger";
+import { ExitConfirmationModal } from "@/components/workout/ExitConfirmationModal";
 import { PostWorkoutData, PostWorkoutModal } from "@/components/workout/PostWorkoutModal";
 import { PreWorkoutData, PreWorkoutModal } from "@/components/workout/PreWorkoutModal";
 import { ResumeModal } from "@/components/workout/ResumeModal";
@@ -35,6 +36,9 @@ export default function WorkoutPage() {
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [pendingRoutine, setPendingRoutine] = useState<any>(null);
   
+  // Exit modal state
+  const [showExitModal, setShowExitModal] = useState(false);
+
   // Stats for post-workout - track locally for accuracy
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
   const [setsLogged, setSetsLogged] = useState(0);
@@ -165,14 +169,18 @@ export default function WorkoutPage() {
     
     if (activeSession) {
       await abandonWorkoutSession(activeSession.id);
+      
+      // Restart with the same routine or pending routine
+      const routineToStart = pendingRoutine || activeSession.routine;
+      setSelectedRoutine(routineToStart);
       setActiveSession(null);
-    }
-    
-    // Start fresh with new routine
-    if (pendingRoutine) {
+      setPendingRoutine(null);
+    } else if (pendingRoutine) {
+      // No active session, but pending routine
       setSelectedRoutine(pendingRoutine);
       setPendingRoutine(null);
     }
+    
     setStage('pre-workout');
   };
 
@@ -191,6 +199,19 @@ export default function WorkoutPage() {
 
   return (
     <div className="min-h-screen bg-background p-6 max-w-md mx-auto flex flex-col">
+       {/* Exit Confirmation Modal */}
+       <AnimatePresence>
+        {showExitModal && (
+          <ExitConfirmationModal
+            onCancel={() => setShowExitModal(false)}
+            onConfirm={() => {
+              setShowExitModal(false);
+              setStage('select');
+            }}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Resume Modal */}
       <AnimatePresence>
         {showResumeModal && activeSession && (
@@ -240,10 +261,8 @@ export default function WorkoutPage() {
                 setStage('select');
                 setSelectedRoutine(null);
               } else if (stage === 'exercise') {
-                // Warn about leaving mid-workout
-                if (confirm("Leave workout? Your progress is saved.")) {
-                  setStage('select');
-                }
+                // Warn about leaving mid-workout - Show custom modal instead of native confirm
+                setShowExitModal(true);
               }
             }}
             className="p-2 rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors"
@@ -367,13 +386,10 @@ export default function WorkoutPage() {
               exercise={{
                 ...currentExercise,
                 // Override defaults with Routine-specific config
-                defaultSets: currentSessionExercise?.sets?.length || 
-                  selectedRoutine?.exercises?.[currentExerciseIndex]?.sets || 
-                  currentExercise.defaultSets,
-                defaultReps: selectedRoutine?.exercises?.[currentExerciseIndex]?.reps || 
-                  currentExercise.defaultReps,
-                restSeconds: selectedRoutine?.exercises?.[currentExerciseIndex]?.restSeconds || 
-                  currentExercise.restSeconds,
+                // currentSessionExercise IS the RoutineExercise which has sets/reps/restSeconds
+                defaultSets: currentSessionExercise?.sets || currentExercise.defaultSets,
+                defaultReps: currentSessionExercise?.reps || currentExercise.defaultReps,
+                restSeconds: currentSessionExercise?.restSeconds ?? currentExercise.restSeconds,
               }}
               onComplete={handleExerciseComplete} 
             />
