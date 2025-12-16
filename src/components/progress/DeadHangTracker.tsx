@@ -4,6 +4,10 @@ import { getDeadHangHistory, logDeadHang } from "@/app/actions/progress";
 import { motion } from "framer-motion";
 import { Award, Timer, TrendingUp } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+// Configuration constants
+const HISTORY_LIMIT = 7; // Number of recent entries to display
 
 export function DeadHangTracker() {
   const [seconds, setSeconds] = useState(0);
@@ -17,7 +21,7 @@ export function DeadHangTracker() {
 
   const loadHistory = async () => {
     try {
-      const data = await getDeadHangHistory(7); // Last 7 days
+      const data = await getDeadHangHistory(HISTORY_LIMIT);
       setHistory(data);
     } catch (error) {
       console.error("Failed to load dead hang history:", error);
@@ -47,10 +51,11 @@ export function DeadHangTracker() {
     if (seconds > 0) {
       try {
         await logDeadHang(seconds);
+        toast.success(`Saved: ${formatTime(seconds)}`);
         await loadHistory(); // Refresh history
       } catch (error) {
         console.error("Failed to log dead hang:", error);
-        alert("Failed to save dead hang time. Please try again.");
+        toast.error("Failed to save dead hang time. Please try again.");
       }
     }
   };

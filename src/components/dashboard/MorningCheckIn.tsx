@@ -3,6 +3,7 @@
 import { createDailyLog } from "@/app/actions/daily-log";
 import { BigButton } from "@/components/ui/BigButton";
 import { motion } from "framer-motion";
+import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -85,7 +86,14 @@ export function MorningCheckIn({ onComplete, cutoffHour = 5, cutoffMinute = 30 }
         disabled={!weight || !sleep || submitting}
         className="mt-4 shadow-[0_10px_30px_-10px_rgba(239,68,68,0.4)]"
       >
-        {submitting ? "Initializing..." : "Initialize System"}
+        {submitting ? (
+          <span className="flex items-center gap-2">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Initializing...
+          </span>
+        ) : (
+          "Initialize System"
+        )}
       </BigButton>
     </motion.div>
   );

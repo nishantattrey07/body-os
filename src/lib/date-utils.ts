@@ -105,22 +105,6 @@ export function getUTCDayBounds(
 }
 
 /**
- * Legacy compatibility - use getDailyLogKey instead
- * @deprecated
- */
-export function startOfDay(date: Date): Date {
-    return getDailyLogKey(date);
-}
-
-/**
- * Legacy compatibility - use getUTCDayBounds instead
- * @deprecated
- */
-export function endOfDay(date: Date): Date {
-    return getUTCDayBounds(date).end;
-}
-
-/**
  * Get date N days ago (UTC normalized, respecting cutoff)
  * 
  * @param days - Number of days to go back

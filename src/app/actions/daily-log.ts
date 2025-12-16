@@ -215,8 +215,6 @@ async function checkBloatPattern(userId: string) {
         const consecutiveBloat = logs.slice(0, 2).every(log => log.bloated);
 
         if (consecutiveBloat) {
-            console.log('[SMART LOGIC] Detected consecutive bloat, disabling high-volume soya');
-
             // Disable high-volume soya items
             await prisma.inventoryItem.updateMany({
                 where: {

@@ -1,4 +1,5 @@
 import { createDailyLog, getTodayLog } from '@/app/actions/daily-log';
+import { InventoryItem } from '@/store/inventoryStore';
 import { create } from 'zustand';
 
 interface DailyStats {
@@ -28,7 +29,7 @@ interface DailyStatsStore extends DailyStats {
     loadTodayLog: () => Promise<void>;
     submitCheckIn: (weight: number, sleep: number) => Promise<void>;
     addProtein: (amount: number) => void;
-    logNutritionItem: (item: any) => Promise<void>;
+    logNutritionItem: (item: InventoryItem) => Promise<void>;
     logWater: (amount: number) => Promise<void>;
     reset: () => void;
 }
@@ -138,7 +139,7 @@ export const useDailyStore = create<DailyStatsStore>((set, get) => ({
         }));
     },
 
-    logNutritionItem: async (item: any) => {
+    logNutritionItem: async (item: InventoryItem) => {
         const state = get();
 
         // Capture current state for rollback

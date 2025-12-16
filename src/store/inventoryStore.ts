@@ -1,7 +1,7 @@
 import { getInventoryItems } from '@/app/actions/nutrition';
 import { create } from 'zustand';
 
-interface InventoryItem {
+export interface InventoryItem {
     id: string;
     name: string;
     icon: string;
@@ -18,7 +18,8 @@ interface InventoryStore {
     initialized: boolean;
 
     // Actions
-    loadItems: () => Promise<void>;
+    loadItems: (forceRefresh?: boolean) => Promise<void>;
+    invalidate: () => void;
 }
 
 export const useInventoryStore = create<InventoryStore>((set, get) => ({
@@ -26,11 +27,12 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
     loading: false,
     initialized: false,
 
-    loadItems: async () => {
-        const { initialized } = get();
+    loadItems: async (forceRefresh = false) => {
+        const { initialized, loading } = get();
 
-        // Only fetch once per session
-        if (initialized) return;
+        // Skip if already loading or initialized (unless force refresh)
+        if (loading) return;
+        if (initialized && !forceRefresh) return;
 
         set({ loading: true });
 
@@ -46,4 +48,8 @@ export const useInventoryStore = create<InventoryStore>((set, get) => ({
             set({ loading: false, initialized: true });
         }
     },
+
+    // Call this to force a refresh on next load (e.g., after mutations)
+    invalidate: () => set({ initialized: false }),
 }));
+

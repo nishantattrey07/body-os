@@ -118,23 +118,26 @@ export async function getLatestPhotosByType() {
             return [];
         }
 
-        const types = ['front', 'side', 'back'];
-        const latestPhotos = await Promise.all(
-            types.map(async (type) => {
-                const photo = await prisma.progressPhoto.findFirst({
-                    where: {
-                        userId: session.user.id,
-                        type,
-                    },
-                    orderBy: {
-                        date: 'desc',
-                    },
-                });
-                return photo;
-            })
-        );
+        // Single query to get all photos, then group by type and take latest
+        const allPhotos = await prisma.progressPhoto.findMany({
+            where: {
+                userId: session.user.id,
+                type: { in: ['front', 'side', 'back'] },
+            },
+            orderBy: {
+                date: 'desc',
+            },
+        });
 
-        return latestPhotos.filter(Boolean);
+        // Group by type and take the first (latest) of each
+        const latestByType = new Map<string, typeof allPhotos[0]>();
+        for (const photo of allPhotos) {
+            if (!latestByType.has(photo.type)) {
+                latestByType.set(photo.type, photo);
+            }
+        }
+
+        return Array.from(latestByType.values());
     } catch (error) {
         console.error("Failed to fetch latest photos:", error);
         return [];

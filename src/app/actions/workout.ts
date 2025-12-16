@@ -160,12 +160,6 @@ export async function isWarmupComplete() {
         // All warmups must be completed
         const isComplete = completedWarmups.length === allWarmups.length;
 
-        console.log('[WARMUP GATEKEEPER]', {
-            required: allWarmups.length,
-            completed: completedWarmups.length,
-            isComplete,
-        });
-
         return isComplete;
     } catch (error) {
         console.error("Failed to check warmup status:", error);
