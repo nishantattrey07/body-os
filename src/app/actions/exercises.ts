@@ -35,6 +35,97 @@ export async function getExercises() {
 }
 
 /**
+ * Get exercises with cursor-based pagination, search, and filtering
+ */
+export async function getExercisesPaginated(params: {
+    cursor?: string;
+    limit?: number;
+    search?: string;
+    category?: string;
+    includeSystem?: boolean;
+    includeUser?: boolean;
+}) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            throw new Error("Unauthorized");
+        }
+
+        const pageSize = Math.min(params.limit || 20, 50); // Cap at 50
+
+        // Build where clause
+        const where: any = {
+            OR: [],
+        };
+
+        // System/User filtering
+        if (params.includeSystem !== false) {
+            where.OR.push({ isSystem: true });
+        }
+        if (params.includeUser !== false) {
+            where.OR.push({ userId: session.user.id });
+        }
+
+        // If both are explicitly disabled, return empty
+        if (where.OR.length === 0) {
+            return {
+                items: [],
+                nextCursor: null,
+                hasMore: false,
+            };
+        }
+
+        // Search filter
+        if (params.search) {
+            where.AND = {
+                OR: [
+                    { name: { contains: params.search, mode: 'insensitive' } },
+                    { description: { contains: params.search, mode: 'insensitive' } },
+                ],
+            };
+        }
+
+        // Category filter
+        if (params.category) {
+            where.category = params.category;
+        }
+
+        // Cursor pagination
+        if (params.cursor) {
+            where.id = { gt: params.cursor };
+        }
+
+        // Fetch pageSize + 1 to detect if more pages exist
+        const items = await prisma.exercise.findMany({
+            where,
+            orderBy: [
+                { isSystem: 'desc' }, // System first
+                { name: 'asc' },
+                { id: 'asc' },        // Deterministic ordering
+            ],
+            take: pageSize + 1,
+        });
+
+        const hasMore = items.length > pageSize;
+        const results = hasMore ? items.slice(0, pageSize) : items;
+        const nextCursor = hasMore ? results[results.length - 1].id : null;
+
+        return {
+            items: results,
+            nextCursor,
+            hasMore,
+        };
+    } catch (error) {
+        console.error("Failed to fetch paginated exercises:", error);
+        return {
+            items: [],
+            nextCursor: null,
+            hasMore: false,
+        };
+    }
+}
+
+/**
  * Get distinct exercise categories (system + user custom)
  */
 export async function getExerciseCategories() {

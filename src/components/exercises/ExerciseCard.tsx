@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Dumbbell, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
 interface Exercise {
     id: string;
@@ -26,26 +26,21 @@ export function ExerciseCard({ exercise, onEdit, onDelete }: ExerciseCardProps) 
             animate={{ opacity: 1, y: 0 }}
             className="bg-white rounded-2xl border-2 border-zinc-100 p-4 relative"
         >
-            {/* System Badge */}
-            {exercise.isSystem && (
-                <div className="absolute top-3 right-3 bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">
-                    System
-                </div>
-            )}
-
-            {/* Exercise Icon & Name */}
-            <div className="flex items-start gap-3 mb-2">
-                <div className="bg-orange-100 p-2 rounded-xl">
-                    <Dumbbell size={20} className="text-orange-600" />
-                </div>
-                <div className="flex-1">
+            {/* Exercise Name with System Badge */}
+            <div className="mb-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-lg font-bold font-heading text-zinc-900">
                         {exercise.name}
                     </h3>
-                    <p className="text-sm text-zinc-500 uppercase tracking-wider font-semibold">
-                        {exercise.category}
-                    </p>
+                    {exercise.isSystem && (
+                        <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">
+                            System
+                        </span>
+                    )}
                 </div>
+                <p className="text-sm text-zinc-500 uppercase tracking-wider font-semibold">
+                    {exercise.category}
+                </p>
             </div>
 
             {/* Sets & Reps */}

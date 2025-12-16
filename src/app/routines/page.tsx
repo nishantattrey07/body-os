@@ -1,12 +1,12 @@
 "use client";
 
-import { createRoutine, deleteRoutine, getRoutines, updateRoutine } from "@/app/actions/routines";
+import { createRoutine, deleteRoutine, getRoutinesPaginated, updateRoutine } from "@/app/actions/routines";
 import { RoutineCard } from "@/components/routines/RoutineCard";
 import { RoutineForm } from "@/components/routines/RoutineForm";
-import { motion } from "framer-motion";
-import { ArrowLeft, Dumbbell, Plus } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, Dumbbell, Loader2, Plus, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Routine {
     id: string;
@@ -16,28 +16,100 @@ interface Routine {
     exercises: any[];
 }
 
+type FilterType = "all" | "system" | "user";
+
 export default function RoutinesPage() {
     const router = useRouter();
     const [routines, setRoutines] = useState<Routine[]>([]);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
     const [loading, setLoading] = useState(true);
+    
+    // Search & Filter State
+    const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [filter, setFilter] = useState<FilterType>("all");
+    
+    // Pagination State
+    const [cursor, setCursor] = useState<string | null>(null);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    
+    // Scroll state for gradient visibility
+    const [isScrolled, setIsScrolled] = useState(false);
 
+    // Track scroll position
     useEffect(() => {
-        loadRoutines();
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 120);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const loadRoutines = async () => {
-        setLoading(true);
-        const data = await getRoutines();
-        setRoutines(data as Routine[]);
+    // Debounce search input
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search);
+            setCursor(null); // Reset pagination on new search
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [search]);
+
+    // Load routines when search or filter changes
+    useEffect(() => {
+        loadRoutines(true);
+    }, [debouncedSearch, filter]);
+
+    const loadRoutines = async (reset = false) => {
+        if (reset) {
+            setLoading(true);
+            setCursor(null);
+        }
+        
+        const { items, nextCursor, hasMore: more } = await getRoutinesPaginated({
+            search: debouncedSearch || undefined,
+            includeSystem: filter !== "user",
+            includeUser: filter !== "system",
+            limit: 20,
+            cursor: reset ? undefined : (cursor || undefined),
+        });
+        
+        if (reset) {
+            setRoutines(items as Routine[]);
+        } else {
+            setRoutines(prev => [...prev, ...(items as Routine[])]);
+        }
+        
+        setCursor(nextCursor);
+        setHasMore(more);
         setLoading(false);
+        setLoadingMore(false);
     };
+
+    const loadMoreRoutines = async () => {
+        if (!hasMore || loadingMore || !cursor) return;
+        setLoadingMore(true);
+        await loadRoutines(false);
+    };
+
+    // Intersection Observer for infinite scroll
+    const observerRef = useRef<IntersectionObserver | undefined>(undefined);
+    const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
+        if (loadingMore) return;
+        if (observerRef.current) observerRef.current.disconnect();
+        observerRef.current = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && hasMore) {
+                loadMoreRoutines();
+            }
+        });
+        if (node) observerRef.current.observe(node);
+    }, [loadingMore, hasMore, cursor]);
 
     const handleCreate = async (data: any) => {
         try {
             await createRoutine(data);
-            await loadRoutines();
+            await loadRoutines(true);
             setIsFormOpen(false);
         } catch (error) {
             alert("Failed to create routine");
@@ -53,7 +125,7 @@ export default function RoutinesPage() {
         if (!editingRoutine) return;
         try {
             await updateRoutine(editingRoutine.id, data);
-            await loadRoutines();
+            await loadRoutines(true);
             setIsFormOpen(false);
             setEditingRoutine(null);
         } catch (error) {
@@ -65,7 +137,7 @@ export default function RoutinesPage() {
         if (!confirm("Delete this routine?")) return;
         try {
             await deleteRoutine(routineId);
-            await loadRoutines();
+            await loadRoutines(true);
         } catch (error) {
             alert("Failed to delete routine");
         }
@@ -75,10 +147,16 @@ export default function RoutinesPage() {
         router.push(`/routines/${routineId}/build`);
     };
 
+    const filterLabels: Record<FilterType, string> = {
+        all: "All",
+        system: "System",
+        user: "My Routines",
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-b from-orange-50 to-white pb-20">
             {/* Header */}
-            <div className="bg-white border-b border-zinc-100 px-6 py-4 flex items-center justify-between sticky top-0 z-30">
+            <div className="bg-white border-b border-zinc-100 px-6 py-4 flex items-center justify-between fixed top-0 left-0 right-0 z-30">
                 <button
                     onClick={() => router.back()}
                     className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
@@ -86,36 +164,118 @@ export default function RoutinesPage() {
                     <ArrowLeft size={24} />
                 </button>
                 <h1 className="text-xl font-bold font-heading">Workout Routines</h1>
-                {/* The plus button was here and has been removed */}
+                <div className="w-10" /> {/* Spacer for centering */}
             </div>
 
-            {/* Routines Grid */}
-            <div className="px-6 py-6">
-                {loading ? (
-                    <div className="text-center py-12 text-zinc-500">Loading routines...</div>
-                ) : routines.length === 0 ? (
-                    <div className="text-center py-12">
-                        <Dumbbell size={48} className="mx-auto text-zinc-300 mb-4" />
-                        <p className="text-zinc-500 mb-4">No routines found</p>
-                        <button
-                            onClick={() => setIsFormOpen(true)}
-                            className="px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors"
-                        >
-                            Create Your First Routine
-                        </button>
+            {/* Fixed Search + Filters */}
+            <div className="fixed top-[74px] left-0 right-0 z-20 bg-orange-50">
+                {/* Floating Search Bar */}
+                <div className="px-6 pt-2 pb-2">
+                    <div className="bg-white rounded-2xl shadow-lg border border-zinc-100 p-4 mx-2 flex items-center gap-3">
+                        <Search size={22} className="text-zinc-400 flex-shrink-0" />
+                        <input
+                            type="text"
+                            placeholder="Search routines..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="flex-1 bg-transparent outline-none text-base placeholder:text-zinc-400"
+                        />
+                        <AnimatePresence>
+                            {search && (
+                                <motion.button
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    exit={{ scale: 0 }}
+                                    onClick={() => setSearch("")}
+                                    className="p-1 hover:bg-zinc-100 rounded-full"
+                                >
+                                    <X size={18} className="text-zinc-400" />
+                                </motion.button>
+                            )}
+                        </AnimatePresence>
                     </div>
-                ) : (
+                </div>
+
+                {/* Filter Tabs */}
+                <div className="px-6 py-4 flex gap-2 overflow-x-auto no-scrollbar">
+                    {(["all", "system", "user"] as FilterType[]).map((f) => (
+                        <button
+                            key={f}
+                            onClick={() => setFilter(f)}
+                            className={`px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
+                                filter === f
+                                    ? "bg-orange-500 text-white shadow-sm transform scale-105"
+                                    : "bg-white/80 text-zinc-600 border border-zinc-200 hover:border-orange-200"
+                            }`}
+                        >
+                            {filterLabels[f]}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Darkening gradient - only visible when scrolled */}
+                <div className={`absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-orange-200/60 to-transparent pointer-events-none transform translate-y-full transition-opacity duration-300 ${isScrolled ? 'opacity-100' : 'opacity-0'}`} />
+            </div>
+
+            {/* Spacer for fixed elements */}
+            <div className="h-56" />
+
+            {/* Routines Grid */}
+            <div className="px-6 pt-4 pb-6 min-h-[50vh]">
+                {loading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {routines.map((routine) => (
-                            <div key={routine.id} onClick={() => handleBuildRoutine(routine.id)} className="cursor-pointer">
-                                <RoutineCard
-                                    routine={routine}
-                                    onEdit={() => handleEdit(routine)}
-                                    onDelete={() => handleDelete(routine.id)}
-                                />
+                        {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className="bg-white rounded-2xl p-4 border border-zinc-100 animate-pulse">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="h-6 w-32 bg-zinc-200 rounded" />
+                                    <div className="h-5 w-16 bg-blue-100 rounded-full" />
+                                </div>
+                                <div className="h-4 w-3/4 bg-zinc-100 rounded mb-2" />
+                                <div className="flex justify-between items-center">
+                                    <div className="h-4 w-20 bg-zinc-100 rounded" />
+                                    <div className="h-4 w-12 bg-orange-100 rounded" />
+                                </div>
                             </div>
                         ))}
                     </div>
+                ) : routines.length === 0 ? (
+                    <div className="text-center py-12">
+                        <Dumbbell size={48} className="mx-auto text-zinc-300 mb-4" />
+                        <p className="text-zinc-500 mb-4">
+                            {search ? "No routines match your search" : "No routines found"}
+                        </p>
+                        {!search && (
+                            <button
+                                onClick={() => setIsFormOpen(true)}
+                                className="px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors"
+                            >
+                                Create Your First Routine
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {routines.map((routine) => (
+                                <RoutineCard
+                                    key={routine.id}
+                                    routine={routine}
+                                    onEdit={() => handleEdit(routine)}
+                                    onDelete={() => handleDelete(routine.id)}
+                                    onBuild={() => handleBuildRoutine(routine.id)}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Load More Trigger */}
+                        {hasMore && (
+                            <div ref={loadMoreRef} className="py-8 text-center">
+                                {loadingMore && (
+                                    <Loader2 className="animate-spin mx-auto text-zinc-400" size={24} />
+                                )}
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
 

@@ -44,6 +44,98 @@ export async function getRoutines() {
 }
 
 /**
+ * Get routines with cursor-based pagination, search, and filtering
+ */
+export async function getRoutinesPaginated(params: {
+    cursor?: string;
+    limit?: number;
+    search?: string;
+    includeSystem?: boolean;
+    includeUser?: boolean;
+}) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            throw new Error("Unauthorized");
+        }
+
+        const pageSize = Math.min(params.limit || 20, 50); // Cap at 50
+
+        // Build where clause
+        const where: any = {
+            OR: [],
+        };
+
+        // System/User filtering
+        if (params.includeSystem !== false) {
+            where.OR.push({ isSystem: true });
+        }
+        if (params.includeUser !== false) {
+            where.OR.push({ userId: session.user.id });
+        }
+
+        // If both are explicitly disabled, return empty
+        if (where.OR.length === 0) {
+            return {
+                items: [],
+                nextCursor: null,
+                hasMore: false,
+            };
+        }
+
+        // Search filter
+        if (params.search) {
+            where.AND = {
+                OR: [
+                    { name: { contains: params.search, mode: 'insensitive' } },
+                    { description: { contains: params.search, mode: 'insensitive' } },
+                ],
+            };
+        }
+
+        // Cursor pagination
+        if (params.cursor) {
+            where.id = { gt: params.cursor };
+        }
+
+        // Fetch pageSize + 1 to detect if more pages exist
+        const items = await prisma.workoutRoutine.findMany({
+            where,
+            include: {
+                exercises: {
+                    include: { exercise: true },
+                    orderBy: { order: 'asc' },
+                },
+            },
+            orderBy: [
+                { isSystem: 'desc' }, // System first
+                { name: 'asc' },
+                { id: 'asc' },        // Deterministic ordering
+            ],
+            take: pageSize + 1,
+        });
+
+        const hasMore = items.length > pageSize;
+        const results = hasMore ? items.slice(0, pageSize) : items;
+        const nextCursor = hasMore ? results[results.length - 1].id : null;
+
+        return {
+            items: results,
+            nextCursor,
+            hasMore,
+        };
+    } catch (error) {
+        console.error("Failed to fetch paginated routines:", error);
+        return {
+            items: [],
+            nextCursor: null,
+            hasMore: false,
+        };
+    }
+}
+
+
+/**
  * Get a single routine by ID
  */
 export async function getRoutineById(routineId: string) {

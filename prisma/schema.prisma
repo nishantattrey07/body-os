@@ -162,6 +162,9 @@ model Exercise {
   sessionExercises SessionExercise[]  // Session instances
   
   @@unique([name, userId])
+  @@index([isSystem, name])  // For pagination + filtering
+  @@index([category])        // For category filtering
+  @@index([userId, name])    // For user-specific pagination
 }
 
 
@@ -217,6 +220,8 @@ model WorkoutRoutine {
   sessions    WorkoutSession[]   // Sessions using this routine
   
   @@unique([name, userId])
+  @@index([isSystem, name])  // For pagination
+  @@index([userId, name])    // For user-specific pagination
 }
 
 model RoutineExercise {

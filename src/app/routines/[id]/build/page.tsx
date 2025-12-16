@@ -12,6 +12,7 @@ import { motion, Reorder } from "framer-motion";
 import { ArrowLeft, GripVertical, Plus, Save, Trash2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 // Types
 type RoutineExercise = {
@@ -54,6 +55,16 @@ export default function RoutineBuilderPage() {
             getRoutineById(routineId),
             getExercises(),
         ]);
+
+        // Protect system routines from editing
+        if (routineData?.isSystem) {
+            toast.error("System routines cannot be edited", {
+                description: "This is a pre-built routine. Create your own routine to customize exercises."
+            });
+            router.back();
+            return;
+        }
+
         setRoutine(routineData);
         if (routineData?.exercises) {
             setLocalExercises(routineData.exercises);

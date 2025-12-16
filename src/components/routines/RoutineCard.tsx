@@ -27,9 +27,10 @@ interface RoutineCardProps {
     };
     onEdit?: () => void;
     onDelete?: () => void;
+    onBuild?: () => void; // Navigate to builder page
 }
 
-export function RoutineCard({ routine, onEdit, onDelete }: RoutineCardProps) {
+export function RoutineCard({ routine, onEdit, onDelete, onBuild }: RoutineCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
@@ -64,7 +65,10 @@ export function RoutineCard({ routine, onEdit, onDelete }: RoutineCardProps) {
                         {routine.exercises.length} exercise{routine.exercises.length !== 1 ? 's' : ''}
                     </span>
                     <button
-                        onClick={() => setIsExpanded(!isExpanded)}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsExpanded(!isExpanded);
+                        }}
                         className="flex items-center gap-1 text-sm font-semibold text-orange-600 hover:text-orange-700"
                     >
                         {isExpanded ? (
@@ -101,14 +105,20 @@ export function RoutineCard({ routine, onEdit, onDelete }: RoutineCardProps) {
             {!routine.isSystem && (
                 <div className="flex gap-2 p-4 border-t border-zinc-100">
                     <button
-                        onClick={onEdit}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onBuild?.();
+                        }}
                         className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-blue-50 text-blue-700 rounded-xl font-semibold text-sm hover:bg-blue-100 transition-colors"
                     >
                         <Edit2 size={14} />
                         Edit
                     </button>
                     <button
-                        onClick={onDelete}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete?.();
+                        }}
                         className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-red-50 text-red-700 rounded-xl font-semibold text-sm hover:bg-red-100 transition-colors"
                     >
                         <Trash2 size={14} />

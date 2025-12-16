@@ -1,12 +1,12 @@
 "use client";
 
-import { getWorkoutRoutines } from "@/app/actions/workout";
+import { getRoutinesPaginated } from "@/app/actions/routines";
 import {
-  abandonWorkoutSession,
-  completeWorkoutSession,
-  getActiveSession,
-  getResumePosition,
-  startWorkoutSession
+    abandonWorkoutSession,
+    completeWorkoutSession,
+    getActiveSession,
+    getResumePosition,
+    startWorkoutSession
 } from "@/app/actions/workout-session";
 import { ExerciseLogger } from "@/components/workout/ExerciseLogger";
 import { ExitConfirmationModal } from "@/components/workout/ExitConfirmationModal";
@@ -15,12 +15,13 @@ import { PreWorkoutData, PreWorkoutModal } from "@/components/workout/PreWorkout
 import { ResumeModal } from "@/components/workout/ResumeModal";
 import { WarmupGate } from "@/components/workout/WarmupGate";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Dumbbell } from "lucide-react";
+import { ArrowLeft, Dumbbell, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 type Stage = 'loading' | 'select' | 'pre-workout' | 'warmup' | 'exercise' | 'post-workout';
+type FilterType = "all" | "system" | "user";
 
 export default function WorkoutPage() {
   const router = useRouter();
@@ -30,6 +31,19 @@ export default function WorkoutPage() {
   const [routines, setRoutines] = useState<any[]>([]);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  
+  // Search & Filter State
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filter, setFilter] = useState<FilterType>("all");
+  
+  // Pagination State
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  
+  // Scroll state for gradient visibility
+  const [isScrolled, setIsScrolled] = useState(false);
   
   // Session state
   const [activeSession, setActiveSession] = useState<any>(null);
@@ -43,9 +57,34 @@ export default function WorkoutPage() {
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
   const [setsLogged, setSetsLogged] = useState(0);
 
+  // Track scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 120);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setCursor(null);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   useEffect(() => {
     checkActiveSession();
   }, []);
+
+  // Reload routines when search or filter changes
+  useEffect(() => {
+    if (stage === 'select') {
+      loadRoutines(true);
+    }
+  }, [debouncedSearch, filter]);
 
   const checkActiveSession = async () => {
     try {
@@ -57,9 +96,8 @@ export default function WorkoutPage() {
         setShowResumeModal(true);
       }
       
-      // Load routines
-      const data = await getWorkoutRoutines();
-      setRoutines(data);
+      // Load routines with pagination
+      await loadRoutines(true);
     } catch (error) {
       console.error("Failed to check session:", error);
     } finally {
@@ -67,6 +105,51 @@ export default function WorkoutPage() {
       setStage('select');
     }
   };
+
+  const loadRoutines = async (reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setCursor(null);
+    }
+    
+    const { items, nextCursor, hasMore: more } = await getRoutinesPaginated({
+      search: debouncedSearch || undefined,
+      includeSystem: filter !== "user",
+      includeUser: filter !== "system",
+      limit: 20,
+      cursor: reset ? undefined : (cursor || undefined),
+    });
+    
+    if (reset) {
+      setRoutines(items);
+    } else {
+      setRoutines(prev => [...prev, ...items]);
+    }
+    
+    setCursor(nextCursor);
+    setHasMore(more);
+    setLoading(false);
+    setLoadingMore(false);
+  };
+
+  const loadMoreRoutines = async () => {
+    if (!hasMore || loadingMore || !cursor) return;
+    setLoadingMore(true);
+    await loadRoutines(false);
+  };
+
+  // Intersection Observer for infinite scroll
+  const observerRef = useRef<IntersectionObserver | undefined>(undefined);
+  const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
+    if (loadingMore) return;
+    if (observerRef.current) observerRef.current.disconnect();
+    observerRef.current = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && hasMore) {
+        loadMoreRoutines();
+      }
+    });
+    if (node) observerRef.current.observe(node);
+  }, [loadingMore, hasMore, cursor]);
 
   const handleSelectRoutine = (routine: any) => {
     if (activeSession) {
@@ -198,8 +281,14 @@ export default function WorkoutPage() {
     ? Math.floor(activeSession.activeSeconds / 60) 
     : 0;
 
+  const filterLabels: Record<FilterType, string> = {
+    all: "All",
+    system: "System",
+    user: "My Routines",
+  };
+
   return (
-    <div className="min-h-screen bg-background p-6 max-w-md mx-auto flex flex-col">
+    <div className="min-h-screen bg-background pb-20">
        {/* Exit Confirmation Modal */}
        <AnimatePresence>
         {showExitModal && (
@@ -251,106 +340,207 @@ export default function WorkoutPage() {
         )}
       </AnimatePresence>
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => {
-              if (stage === 'select' || stage === 'loading') {
-                router.back();
-              } else if (stage === 'warmup') {
-                setStage('select');
-                setSelectedRoutine(null);
-              } else if (stage === 'exercise') {
-                // Warn about leaving mid-workout - Show custom modal instead of native confirm
-                setShowExitModal(true);
-              }
-            }}
-            className="p-2 rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors"
-          >
-            <ArrowLeft className="text-zinc-600" />
-          </button>
-          <div className="overflow-hidden">
-            <h1 className="text-3xl font-bold uppercase tracking-tighter text-foreground font-heading truncate">
-              {stage === 'select' || stage === 'loading' 
-                ? 'Select Routine' 
-                : stage === 'warmup' 
-                ? 'Warmup' 
-                : (selectedRoutine?.name || activeSession?.routine?.name || 'Workout')}
-            </h1>
-          </div>
-        </div>
+      {/* Fixed Header */}
+      <div className="fixed top-0 left-0 right-0 z-30 bg-background border-b border-zinc-100 px-6 py-4 flex items-center gap-4">
+        <button 
+          onClick={() => {
+            if (stage === 'select' || stage === 'loading') {
+              router.back();
+            } else if (stage === 'warmup') {
+              setStage('select');
+              setSelectedRoutine(null);
+            } else if (stage === 'exercise') {
+              // Warn about leaving mid-workout - Show custom modal instead of native confirm
+              setShowExitModal(true);
+            }
+          }}
+          className="p-2 rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors"
+        >
+          <ArrowLeft className="text-zinc-600" />
+        </button>
+        <h1 className="text-2xl font-bold uppercase tracking-tighter text-foreground font-heading truncate">
+          {stage === 'select' || stage === 'loading' 
+            ? 'Select Routine' 
+            : stage === 'warmup' 
+            ? 'Warmup' 
+            : (selectedRoutine?.name || activeSession?.routine?.name || 'Workout')}
+        </h1>
       </div>
 
-      {/* Management Links (Only visible in select stage) */}
-      {stage === 'select' && (
-        <div className="flex gap-4 mb-6">
-          <button
-            onClick={() => router.push('/routines')}
-            className="flex-1 py-3 px-4 bg-orange-100 text-orange-700 rounded-2xl font-bold text-sm hover:bg-orange-200 transition-colors flex items-center justify-center gap-2"
-          >
-            <Dumbbell size={18} />
-            Manage Routines
-          </button>
-          <button
-            onClick={() => router.push('/exercises')}
-            className="flex-1 py-3 px-4 bg-zinc-100 text-zinc-700 rounded-2xl font-bold text-sm hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
-          >
-            <Dumbbell size={18} />
-            Exercise Library
-          </button>
-        </div>
-      ) }
+      {/* Select Stage Content */}
+      {(stage === 'select' || stage === 'loading') && (
+        <>
+          {/* Fixed Search + Filters */}
+          <div className="fixed top-[72px] left-0 right-0 z-20 bg-background">
+            {/* Floating Search Bar */}
+            <div className="px-6 pt-2 pb-2">
+              <div className="bg-white rounded-2xl shadow-lg border border-zinc-100 p-4 mx-2 flex items-center gap-3">
+                <Search size={22} className="text-zinc-400 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Search routines..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="flex-1 bg-transparent outline-none text-base placeholder:text-zinc-400"
+                />
+                <AnimatePresence>
+                  {search && (
+                    <motion.button
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      onClick={() => setSearch("")}
+                      className="p-1 hover:bg-zinc-100 rounded-full"
+                    >
+                      <X size={18} className="text-zinc-400" />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
 
-      {/* Stages */}
-      <AnimatePresence mode="wait">
-        {(stage === 'select' || stage === 'loading') && (
-          <motion.div
-            key="select"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            className="space-y-4"
-          >
-            {loading ? (
-              <p className="text-center text-zinc-400 py-8">Loading routines...</p>
-            ) : routines.length === 0 ? (
-              <p className="text-center text-zinc-400 py-8">No routines available</p>
-            ) : (
-              routines.map((routine) => (
+            {/* Filter Tabs */}
+            <div className="px-6 py-3 flex gap-2 overflow-x-auto no-scrollbar">
+              {(["all", "system", "user"] as FilterType[]).map((f) => (
                 <button
-                  key={routine.id}
-                  onClick={() => handleSelectRoutine(routine)}
-                  className="w-full p-6 rounded-3xl bg-white border border-zinc-100 hover:shadow-lg transition-all text-left"
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-5 py-2.5 rounded-full text-sm font-bold whitespace-nowrap transition-all ${
+                    filter === f
+                      ? "bg-orange-500 text-white shadow-sm transform scale-105"
+                      : "bg-white text-zinc-600 border border-zinc-200 hover:border-orange-200"
+                  }`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                      <Dumbbell className="text-red-600" size={24} />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold font-heading text-foreground">
-                        {routine.name}
-                      </h3>
-                      {routine.description && (
-                        <p className="text-sm text-zinc-500 mt-1">{routine.description}</p>
-                      )}
-                      <p className="text-xs text-zinc-400 mt-2">
-                        {routine.exercises?.length || 0} exercises
-                      </p>
-                    </div>
-                  </div>
+                  {filterLabels[f]}
                 </button>
-              ))
-            )}
-          </motion.div>
-        )}
+              ))}
+            </div>
 
+            {/* Management Links */}
+            <div className="flex gap-4 px-6 py-2">
+              <button
+                onClick={() => router.push('/routines')}
+                className="flex-1 py-3 px-4 bg-orange-100 text-orange-700 rounded-2xl font-bold text-sm hover:bg-orange-200 transition-colors flex items-center justify-center gap-2"
+              >
+                <Dumbbell size={18} />
+                Manage Routines
+              </button>
+              <button
+                onClick={() => router.push('/exercises')}
+                className="flex-1 py-3 px-4 bg-zinc-100 text-zinc-700 rounded-2xl font-bold text-sm hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
+              >
+                <Dumbbell size={18} />
+                Exercise Library
+              </button>
+            </div>
+
+            {/* Subtle gray gradient - only visible when scrolled */}
+            <div className={`absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-zinc-200/50 to-transparent pointer-events-none transform translate-y-full transition-opacity duration-300 ${isScrolled ? 'opacity-100' : 'opacity-0'}`} />
+          </div>
+
+          {/* Spacer for fixed elements */}
+          <div className="h-72" />
+
+          {/* Routines List */}
+          <div className="px-6 pt-4 min-h-[50vh]">
+            <motion.div
+              key="select"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="space-y-4"
+            >
+              {loading ? (
+                // Skeleton loading
+                <div className="space-y-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="w-full p-6 rounded-3xl bg-white border border-zinc-100 animate-pulse">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-zinc-100" />
+                        <div className="flex-1">
+                          <div className="h-6 w-32 bg-zinc-200 rounded mb-2" />
+                          <div className="h-4 w-48 bg-zinc-100 rounded mb-1" />
+                          <div className="h-3 w-20 bg-zinc-100 rounded" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : routines.length === 0 ? (
+                <div className="text-center py-12">
+                  <Dumbbell size={48} className="mx-auto text-zinc-300 mb-4" />
+                  <p className="text-zinc-500 mb-4">
+                    {search ? "No routines match your search" : "No routines available"}
+                  </p>
+                  {!search && (
+                    <button
+                      onClick={() => router.push('/routines')}
+                      className="px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors"
+                    >
+                      Create a Routine
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {routines.map((routine) => (
+                    <button
+                      key={routine.id}
+                      onClick={() => handleSelectRoutine(routine)}
+                      className="w-full p-6 rounded-3xl bg-white border border-zinc-100 hover:shadow-lg transition-all text-left"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                          <Dumbbell className="text-red-600" size={24} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-xl font-bold font-heading text-foreground">
+                              {routine.name}
+                            </h3>
+                            {routine.isSystem && (
+                              <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider">
+                                System
+                              </span>
+                            )}
+                          </div>
+                          {routine.description && (
+                            <p className="text-sm text-zinc-500 mt-1 truncate">{routine.description}</p>
+                          )}
+                          <p className="text-xs text-zinc-400 mt-2">
+                            {routine.exercises?.length || routine._count?.exercises || 0} exercises
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                  {hasMore && (
+                    <div ref={loadMoreRef} className="py-8 text-center">
+                      {loadingMore && (
+                        <div className="flex justify-center gap-2">
+                          {[1, 2, 3].map((i) => (
+                            <div key={i} className="w-2 h-2 bg-orange-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.1}s` }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </motion.div>
+          </div>
+        </>
+      )}
+
+      {/* Other Stages */}
+      <AnimatePresence mode="wait">
         {stage === 'warmup' && (
           <motion.div
             key="warmup"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
+            className="p-6 pt-24"
           >
             <WarmupGate onUnlock={handleWarmupComplete} />
           </motion.div>
@@ -362,6 +552,7 @@ export default function WorkoutPage() {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
+            className="p-6 pt-24"
           >
             {/* Progress */}
             <div className="mb-6">
