@@ -1,3 +1,4 @@
+import { NavigationProvider } from "@/providers/NavigationProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import type { Metadata } from "next";
 import { Inter, Teko } from "next/font/google";
@@ -30,10 +31,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${teko.variable} antialiased bg-background text-foreground`}
+        className={`${inter.variable} ${teko.variable} antialiased bg-background text-foreground overflow-x-hidden`}
       >
         <QueryProvider>
-          {children}
+          <NavigationProvider>
+            {children}
+          </NavigationProvider>
         </QueryProvider>
         <Toaster 
           position="top-center" 

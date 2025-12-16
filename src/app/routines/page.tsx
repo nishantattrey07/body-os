@@ -3,6 +3,7 @@
 import { createRoutine, deleteRoutine, getRoutinesPaginated, updateRoutine } from "@/app/actions/routines";
 import { RoutineCard } from "@/components/routines/RoutineCard";
 import { RoutineForm } from "@/components/routines/RoutineForm";
+import { useNavigation } from "@/providers/NavigationProvider";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Dumbbell, Loader2, Plus, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -20,7 +21,8 @@ type FilterType = "all" | "system" | "user";
 
 export default function RoutinesPage() {
     const router = useRouter();
-    const [routines, setRoutines] = useState<Routine[]>([]);
+    const { navigateTo, navigateBack } = useNavigation();
+    const [routines, setRoutines] = useState<Routine[]>([]);;
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
     const [loading, setLoading] = useState(true);
@@ -144,7 +146,7 @@ export default function RoutinesPage() {
     };
 
     const handleBuildRoutine = (routineId: string) => {
-        router.push(`/routines/${routineId}/build`);
+        navigateTo(`/routines/${routineId}/build`);
     };
 
     const filterLabels: Record<FilterType, string> = {
@@ -158,7 +160,7 @@ export default function RoutinesPage() {
             {/* Header */}
             <div className="bg-white border-b border-zinc-100 px-6 py-4 flex items-center justify-between fixed top-0 left-0 right-0 z-30">
                 <button
-                    onClick={() => router.back()}
+                    onClick={() => navigateBack()}
                     className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
                 >
                     <ArrowLeft size={24} />

@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/exercises";
 import { ExerciseCard } from "@/components/exercises/ExerciseCard";
 import { ExerciseForm } from "@/components/exercises/ExerciseForm";
+import { useNavigation } from "@/providers/NavigationProvider";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Dumbbell, Plus, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -28,6 +29,7 @@ type FilterType = "all" | "system" | "user";
 
 export default function ExercisesPage() {
     const router = useRouter();
+    const { navigateBack } = useNavigation();
     const [exercises, setExercises] = useState<Exercise[]>([]);
     const [categories, setCategories] = useState<string[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -170,7 +172,7 @@ export default function ExercisesPage() {
             {/* Header */}
             <div className="bg-white border-b border-zinc-100 px-6 py-4 flex items-center justify-between fixed top-0 left-0 right-0 z-30">
                 <button
-                    onClick={() => router.back()}
+                    onClick={() => navigateBack()}
                     className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
                 >
                     <ArrowLeft size={24} />

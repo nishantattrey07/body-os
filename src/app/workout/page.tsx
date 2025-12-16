@@ -14,6 +14,7 @@ import { PostWorkoutData, PostWorkoutModal } from "@/components/workout/PostWork
 import { PreWorkoutData, PreWorkoutModal } from "@/components/workout/PreWorkoutModal";
 import { ResumeModal } from "@/components/workout/ResumeModal";
 import { WarmupGate } from "@/components/workout/WarmupGate";
+import { useNavigation } from "@/providers/NavigationProvider";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Dumbbell, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -25,6 +26,7 @@ type FilterType = "all" | "system" | "user";
 
 export default function WorkoutPage() {
   const router = useRouter();
+  const { navigateTo, navigateBack } = useNavigation();
   
   const [stage, setStage] = useState<Stage>('loading');
   const [selectedRoutine, setSelectedRoutine] = useState<any>(null);
@@ -205,10 +207,10 @@ export default function WorkoutPage() {
         await completeWorkoutSession(activeSession.id, data);
       }
       setActiveSession(null);
-      router.push('/');
+      navigateTo('/');
     } catch (error) {
       console.error("Failed to complete session:", error);
-      router.push('/');
+      navigateTo('/');
     }
   };
 
@@ -345,7 +347,7 @@ export default function WorkoutPage() {
         <button 
           onClick={() => {
             if (stage === 'select' || stage === 'loading') {
-              router.back();
+              navigateBack();
             } else if (stage === 'warmup') {
               setStage('select');
               setSelectedRoutine(null);
@@ -419,14 +421,14 @@ export default function WorkoutPage() {
             {/* Management Links */}
             <div className="flex gap-4 px-6 py-2">
               <button
-                onClick={() => router.push('/routines')}
+                onClick={() => navigateTo('/routines')}
                 className="flex-1 py-3 px-4 bg-orange-100 text-orange-700 rounded-2xl font-bold text-sm hover:bg-orange-200 transition-colors flex items-center justify-center gap-2"
               >
                 <Dumbbell size={18} />
                 Manage Routines
               </button>
               <button
-                onClick={() => router.push('/exercises')}
+                onClick={() => navigateTo('/exercises')}
                 className="flex-1 py-3 px-4 bg-zinc-100 text-zinc-700 rounded-2xl font-bold text-sm hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
               >
                 <Dumbbell size={18} />
@@ -474,7 +476,7 @@ export default function WorkoutPage() {
                   </p>
                   {!search && (
                     <button
-                      onClick={() => router.push('/routines')}
+                      onClick={() => navigateTo('/routines')}
                       className="px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors"
                     >
                       Create a Routine

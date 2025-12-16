@@ -8,6 +8,7 @@ import { WaterTracker } from "@/components/dashboard/WaterTracker";
 import { useDailyLog } from "@/hooks/queries/useDailyLog";
 import { useUserSettings } from "@/hooks/queries/useUserSettings";
 import { isPastDayCutoff } from "@/lib/date-utils";
+import { useNavigation } from "@/providers/NavigationProvider";
 import { AnimatePresence, motion } from "framer-motion";
 import { Dumbbell, Loader2, Settings, TrendingUp, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -15,6 +16,7 @@ import { useEffect, useState } from "react";
 
 export function DashboardClient() {
   const router = useRouter();
+  const { navigateTo } = useNavigation();
   
   // React Query hooks - automatic refetch on window focus!
   const { data: dailyLog, isLoading: logLoading, refetch: refetchLog } = useDailyLog();
@@ -150,7 +152,7 @@ export function DashboardClient() {
           >
             {/* Settings Button - Absolute Position */}
             <button
-              onClick={() => router.push('/settings')}
+              onClick={() => navigateTo('/settings')}
               className="absolute top-8 right-6 p-2 rounded-full bg-zinc-100/80 hover:bg-zinc-200 transition-colors z-20"
             >
               <Settings size={20} className="text-zinc-600" />
@@ -240,7 +242,7 @@ export function DashboardClient() {
                 sublabel="Track Nutrition"
                 icon={Utensils}
                 color="text-orange-500"
-                onClick={() => router.push("/nutrition")}
+                onClick={() => navigateTo("/nutrition")}
                 className="h-40"
               />
               
@@ -249,7 +251,7 @@ export function DashboardClient() {
                 sublabel="Start Session"
                 icon={Dumbbell}
                 color="text-zinc-900"
-                onClick={() => router.push("/workout")}
+                onClick={() => navigateTo("/workout")}
                 className="h-40"
               />
 
@@ -258,7 +260,7 @@ export function DashboardClient() {
                 sublabel="View Stats & Trends"
                 icon={TrendingUp}
                 color="text-blue-500"
-                onClick={() => router.push("/progress")}
+                onClick={() => navigateTo("/progress")}
                 className="col-span-2 h-24"
                 variant="wide"
                 bgColor="bg-blue-50/50"
