@@ -1,3 +1,4 @@
+import { QueryProvider } from "@/providers/QueryProvider";
 import type { Metadata } from "next";
 import { Inter, Teko } from "next/font/google";
 import { Toaster } from "sonner";
@@ -31,7 +32,9 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${teko.variable} antialiased bg-background text-foreground`}
       >
-        {children}
+        <QueryProvider>
+          {children}
+        </QueryProvider>
         <Toaster 
           position="top-center" 
           richColors 
@@ -50,3 +53,4 @@ export default function RootLayout({
     </html>
   );
 }
+

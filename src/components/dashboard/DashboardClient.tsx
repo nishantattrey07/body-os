@@ -1,77 +1,61 @@
 "use client";
 
-import { getTodayLog } from "@/app/actions/daily-log";
-import { getUserSettings } from "@/app/actions/settings";
 import { ActionCard } from "@/components/dashboard/ActionCard";
 import { MacroGauge } from "@/components/dashboard/MacroGauge";
 import { MorningCheckIn } from "@/components/dashboard/MorningCheckIn";
 import { StatusIndicator } from "@/components/dashboard/StatusIndicator";
 import { WaterTracker } from "@/components/dashboard/WaterTracker";
-import { useVisibilityRefresh } from "@/hooks/useVisibilityRefresh";
+import { useDailyLog } from "@/hooks/queries/useDailyLog";
+import { useUserSettings } from "@/hooks/queries/useUserSettings";
 import { isPastDayCutoff } from "@/lib/date-utils";
 import { AnimatePresence, motion } from "framer-motion";
-import { Dumbbell, Settings, TrendingUp, Utensils } from "lucide-react";
+import { Dumbbell, Loader2, Settings, TrendingUp, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-interface DashboardClientProps {
-  initialLog: any;
-  initialSettings: any;
-}
-
-export function DashboardClient({ initialLog, initialSettings }: DashboardClientProps) {
+export function DashboardClient() {
   const router = useRouter();
   
-  // Calculate initial check-in state
-  const hasCompletedCheckIn = initialLog?.weight && initialLog?.sleepHours;
-  
-  // Check if we're past the user's day cutoff
-  // Use defaults if migration hasn't run yet
-  const cutoffHour = initialSettings.dayCutoffHour ?? 5;
-  const cutoffMinute = initialSettings.dayCutoffMinute ?? 30;
-  
-  const isPastCutoff = isPastDayCutoff(
-    undefined,
-    cutoffHour,
-    cutoffMinute
-  );
-  
-  // Only show check-in if:
-  // 1. Not completed yet AND
-  // 2. We're past the cutoff time (e.g., after 5:30 AM)
-  const [needsCheckIn, setNeedsCheckIn] = useState(!hasCompletedCheckIn && isPastCutoff);
-  const [dailyLog, setDailyLog] = useState<any>(initialLog);
-  const [settings, setSettings] = useState<any>(initialSettings);
+  // React Query hooks - automatic refetch on window focus!
+  const { data: dailyLog, isLoading: logLoading, refetch: refetchLog } = useDailyLog();
+  const { data: settings, isLoading: settingsLoading } = useUserSettings();
 
-  // 🔄 Multi-device sync: Refresh data when user switches back to this tab/app
-  useVisibilityRefresh();
-
-  const loadData = async () => {
-    try {
-      // Re-fetch data (used for updates e.g. after water logging)
-      const [log, userSettings] = await Promise.all([
-        getTodayLog(),
-        getUserSettings(),
-      ]);
-      
-      if (log?.weight && log?.sleepHours) {
-        setNeedsCheckIn(false);
-      }
-      setDailyLog(log);
-      setSettings(userSettings);
-    } catch (error) {
-      console.error("Failed to refresh data:", error);
+  // Derived values with defaults
+  const cutoffHour = settings?.dayCutoffHour ?? 5;
+  const cutoffMinute = settings?.dayCutoffMinute ?? 30;
+  
+  const isPastCutoff = isPastDayCutoff(undefined, cutoffHour, cutoffMinute);
+  
+  // Calculate check-in state
+  const hasCompletedCheckIn = dailyLog?.weight && dailyLog?.sleepHours;
+  
+  // Track explicit check-in state for UI transitions
+  const [needsCheckIn, setNeedsCheckIn] = useState<boolean | null>(null);
+  
+  // Initialize check-in state once data is loaded
+  useEffect(() => {
+    if (!logLoading && needsCheckIn === null) {
+      setNeedsCheckIn(!hasCompletedCheckIn && isPastCutoff);
     }
-  };
+  }, [logLoading, hasCompletedCheckIn, isPastCutoff, needsCheckIn]);
 
   const handleCheckInComplete = async () => {
     setNeedsCheckIn(false);
-    await loadData();
+    await refetchLog();
   };
 
+  // Loading state
+  if (logLoading || settingsLoading || needsCheckIn === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="animate-spin text-zinc-300 w-10 h-10" />
+      </div>
+    );
+  }
+
   // Calculate status - Time-aware thresholds
-  const proteinProgress = dailyLog ? (dailyLog.proteinTotal / settings.proteinTarget) * 100 : 0;
-  const waterProgress = dailyLog ? (dailyLog.waterTotal / settings.waterTarget) * 100 : 0;
+  const proteinProgress = dailyLog ? (dailyLog.proteinTotal / (settings?.proteinTarget ?? 140)) * 100 : 0;
+  const waterProgress = dailyLog ? (dailyLog.waterTotal / (settings?.waterTarget ?? 4000)) * 100 : 0;
   
   // Calculate expected progress based on time of day
   // Assume eating window is 6 AM - 10 PM (16 hours)
@@ -202,19 +186,19 @@ export function DashboardClient({ initialLog, initialSettings }: DashboardClient
                 data={{
                   protein: { 
                     current: dailyLog?.proteinTotal || 0, 
-                    target: settings.proteinTarget 
+                    target: settings?.proteinTarget ?? 140
                   },
                   carbs: { 
                     current: dailyLog?.carbsTotal || 0, 
-                    target: settings.carbsTarget 
+                    target: settings?.carbsTarget ?? 200
                   },
                   fats: { 
                     current: dailyLog?.fatsTotal || 0, 
-                    target: settings.fatsTarget 
+                    target: settings?.fatsTarget ?? 60
                   },
                   calories: { 
                     current: dailyLog?.caloriesTotal || 0, 
-                    target: settings.caloriesTarget 
+                    target: settings?.caloriesTarget ?? 2000
                   },
                 }}
               />

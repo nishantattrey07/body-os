@@ -1,10 +1,12 @@
 "use client";
 
-import { useDailyStore } from "@/store/dailyStore";
-import { useInventoryStore } from "@/store/inventoryStore";
+import { useLogNutrition } from "@/hooks/mutations/useLogNutrition";
+import { useDailyLog } from "@/hooks/queries/useDailyLog";
+import { useInventory } from "@/hooks/queries/useInventory";
+import { useUserSettings } from "@/hooks/queries/useUserSettings";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 interface FoodCardProps {
@@ -88,28 +90,18 @@ interface NutritionGridProps {
 }
 
 export function NutritionGrid({ onLog }: NutritionGridProps) {
-  const { 
-    items, 
-    loading: itemsLoading, 
-    loadItems 
-  } = useInventoryStore();
-  
-  const { 
-    proteinTotal,
-    proteinTarget,
-    loadTodayLog, 
-    logNutritionItem 
-  } = useDailyStore();
+  // React Query hooks
+  const { data: items = [], isLoading: itemsLoading } = useInventory();
+  const { data: dailyLog } = useDailyLog();
+  const { data: settings } = useUserSettings();
+  const logNutritionMutation = useLogNutrition();
 
-  useEffect(() => {
-    loadItems();
-    loadTodayLog();
-  }, []);
+  // Derived values with defaults
+  const proteinTotal = dailyLog?.proteinTotal ?? 0;
+  const proteinTarget = settings?.proteinTarget ?? 140;
 
   // Animation State
   const [floatingParticles, setFloatingParticles] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
-
-  // ... existing hooks ...
 
   const handleTap = async (itemId: string, event: React.MouseEvent) => {
     const item = items.find(i => i.id === itemId);
@@ -135,9 +127,8 @@ export function NutritionGrid({ onLog }: NutritionGridProps) {
     }, 1500);
 
     try {
-      // Optimistic update via store
-  // ... existing logic ...
-      await logNutritionItem(item);
+      // Use React Query mutation with optimistic updates
+      await logNutritionMutation.mutateAsync({ item });
       
       // Notify parent (legacy support)
       onLog?.(item.proteinPerUnit);
@@ -149,8 +140,6 @@ export function NutritionGrid({ onLog }: NutritionGridProps) {
       });
     }
   };
-
-
 
   if (itemsLoading) {
     return (

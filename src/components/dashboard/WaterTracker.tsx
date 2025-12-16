@@ -1,28 +1,36 @@
 "use client";
 
-import { useDailyStore } from "@/store/dailyStore";
+import { useLogWater } from "@/hooks/mutations/useLogWater";
+import { useDailyLog } from "@/hooks/queries/useDailyLog";
+import { useUserSettings } from "@/hooks/queries/useUserSettings";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export function WaterTracker() {
-  const { waterTotal, waterTarget, logWater } = useDailyStore();
+  // React Query hooks
+  const { data: dailyLog } = useDailyLog();
+  const { data: settings } = useUserSettings();
+  const logWaterMutation = useLogWater();
+
+  // Derived values with defaults
+  const waterTotal = dailyLog?.waterTotal ?? 0;
+  const waterTarget = settings?.waterTarget ?? 4000;
+
   const [tapping, setTapping] = useState(false);
   
   const PER_TAP = 250; // 250ml per glass
-
-  // No load effect needed, dailyStore handles it globally
 
   const handleTap = async () => {
     if (tapping) return;
     
     setTapping(true);
     try {
-      // Optimistic update via store
-      await logWater(PER_TAP);
+      // Use React Query mutation with optimistic updates
+      await logWaterMutation.mutateAsync(PER_TAP);
       
-      // SUCCESS: No toast, visual feedback handled by store update + animation
+      // SUCCESS: No toast, visual feedback handled by query update + animation
     } catch (error) {
       toast.error("Connection Failed", {
         description: "Could not log water. Please try again.",
