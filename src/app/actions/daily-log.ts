@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { daysAgo, getDailyLogKey, getUTCDayBounds } from "@/lib/date-utils";
+import { getUserCutoff } from "@/lib/defaults";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -99,7 +100,8 @@ export async function markBloated(bloated: boolean) {
             throw new Error("Unauthorized");
         }
 
-        const today = getDailyLogKey();
+        const cutoff = await getUserCutoff(session.user.id);
+        const today = getDailyLogKey(undefined, cutoff.hour, cutoff.minute);
 
         const log = await prisma.dailyLog.upsert({
             where: {
@@ -142,7 +144,8 @@ export async function submitDailyReview(data: {
             throw new Error("Unauthorized");
         }
 
-        const today = getDailyLogKey();
+        const cutoff = await getUserCutoff(session.user.id);
+        const today = getDailyLogKey(undefined, cutoff.hour, cutoff.minute);
 
         // Ensure daily log exists
         const dailyLog = await prisma.dailyLog.upsert({

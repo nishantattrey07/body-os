@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
+import { DEFAULTS } from "@/lib/defaults";
 import { prisma } from "@/lib/prisma";
 
 export async function getUserSettings() {
@@ -15,13 +16,13 @@ export async function getUserSettings() {
 
     // Return defaults if no settings exist
     return settings || {
-        proteinTarget: 140,
-        carbsTarget: 200,
-        fatsTarget: 60,
-        caloriesTarget: 2000,
-        waterTarget: 4000,
-        dayCutoffHour: 5,
-        dayCutoffMinute: 30,
+        proteinTarget: DEFAULTS.proteinTarget,
+        carbsTarget: DEFAULTS.carbsTarget,
+        fatsTarget: DEFAULTS.fatsTarget,
+        caloriesTarget: DEFAULTS.caloriesTarget,
+        waterTarget: DEFAULTS.waterTarget,
+        dayCutoffHour: DEFAULTS.dayCutoffHour,
+        dayCutoffMinute: DEFAULTS.dayCutoffMinute,
     };
 }
 

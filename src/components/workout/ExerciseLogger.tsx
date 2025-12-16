@@ -5,6 +5,7 @@ import { BlockerPicker } from "@/components/blockers/BlockerPicker";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, CheckCircle, Minus, Plus } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 interface ExerciseLoggerProps {
   exercise: any;
@@ -83,7 +84,7 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
       }
     } catch (error: any) {
       console.error("Failed to log exercise:", error);
-      alert("Failed to log exercise. Please try again.");
+      toast.error("Failed to log exercise. Please try again.");
     } finally {
       setLogging(false);
     }

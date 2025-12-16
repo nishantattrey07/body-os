@@ -6,6 +6,7 @@ import { ArrowLeft, LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -40,10 +41,11 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await updateUserSettings(targets);
+      toast.success("Settings saved!");
       router.back();
     } catch (error) {
       console.error("Failed to save settings:", error);
-      alert("Failed to save settings. Please try again.");
+      toast.error("Failed to save settings. Please try again.");
     } finally {
       setSaving(false);
     }

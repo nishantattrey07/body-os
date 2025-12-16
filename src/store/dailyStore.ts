@@ -149,7 +149,7 @@ export const useDailyStore = create<DailyStatsStore>((set, get) => ({
             caloriesTotal: state.caloriesTotal || 0,
         };
 
-        // Calculate expected new totals
+        // Calculate expected new totals for instant feedback
         const optimisticState = {
             proteinTotal: previousState.proteinTotal + (item.proteinPerUnit || 0),
             carbsTotal: previousState.carbsTotal + (item.carbsPerUnit || 0),
@@ -161,33 +161,19 @@ export const useDailyStore = create<DailyStatsStore>((set, get) => ({
         set(optimisticState);
 
         try {
-            // 2. 🌐 Background Server Request
+            // 2. 🌐 Server Request - returns authoritative totals
             const { logNutrition } = await import('@/app/actions/nutrition');
-            await logNutrition(item.id, 1);
+            const result = await logNutrition(item.id, 1);
 
-            // 3. ✅ Verify & Reconcile (Silent sync if server differs)
-            const freshLog = await getTodayLog();
-
-            if (freshLog) {
-                // Check if server calculated differently (bloat detection, rounding, etc.)
-                const serverDiffers =
-                    freshLog.proteinTotal !== optimisticState.proteinTotal ||
-                    freshLog.carbsTotal !== optimisticState.carbsTotal ||
-                    freshLog.fatsTotal !== optimisticState.fatsTotal ||
-                    freshLog.caloriesTotal !== optimisticState.caloriesTotal;
-
-                if (serverDiffers) {
-                    // Silently sync to server's authoritative values
-                    console.log('[Reconciliation] Server calculated different totals, syncing...');
-                    set({
-                        proteinTotal: freshLog.proteinTotal || 0,
-                        carbsTotal: freshLog.carbsTotal || 0,
-                        fatsTotal: freshLog.fatsTotal || 0,
-                        caloriesTotal: freshLog.caloriesTotal || 0,
-                        waterTotal: freshLog.waterTotal || 0,
-                    });
-                }
-                // If server matches, do nothing (keep optimistic state)
+            // 3. ✅ Trust Server Values (no reconciliation needed)
+            // Server calculated the true totals, use them directly
+            if (result.dailyTotals) {
+                set({
+                    proteinTotal: result.dailyTotals.proteinTotal,
+                    carbsTotal: result.dailyTotals.carbsTotal,
+                    fatsTotal: result.dailyTotals.fatsTotal,
+                    caloriesTotal: result.dailyTotals.caloriesTotal,
+                });
             }
 
         } catch (error) {

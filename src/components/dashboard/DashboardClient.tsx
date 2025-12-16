@@ -7,6 +7,7 @@ import { MacroGauge } from "@/components/dashboard/MacroGauge";
 import { MorningCheckIn } from "@/components/dashboard/MorningCheckIn";
 import { StatusIndicator } from "@/components/dashboard/StatusIndicator";
 import { WaterTracker } from "@/components/dashboard/WaterTracker";
+import { useVisibilityRefresh } from "@/hooks/useVisibilityRefresh";
 import { isPastDayCutoff } from "@/lib/date-utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { Dumbbell, Settings, TrendingUp, Utensils } from "lucide-react";
@@ -41,6 +42,9 @@ export function DashboardClient({ initialLog, initialSettings }: DashboardClient
   const [needsCheckIn, setNeedsCheckIn] = useState(!hasCompletedCheckIn && isPastCutoff);
   const [dailyLog, setDailyLog] = useState<any>(initialLog);
   const [settings, setSettings] = useState<any>(initialSettings);
+
+  // 🔄 Multi-device sync: Refresh data when user switches back to this tab/app
+  useVisibilityRefresh();
 
   const loadData = async () => {
     try {

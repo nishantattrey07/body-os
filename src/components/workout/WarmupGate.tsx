@@ -4,6 +4,7 @@ import { getTodayWarmupProgress, getWarmupChecklist, isWarmupComplete, toggleWar
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, Lock, Unlock } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 interface WarmupGateProps {
   onUnlock: () => void;
@@ -74,7 +75,7 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
         return newSet;
       });
       
-      alert("Failed to update warmup. Please try again.");
+      toast.error("Failed to update warmup. Please try again.");
     }
   };
 
@@ -85,7 +86,7 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
       if (isComplete) {
         setTimeout(() => onUnlock(), 500); // Small delay for animation
       } else {
-        alert("Complete all warmup items first!");
+        toast.warning("Complete all warmup items first!");
       }
     } catch (error) {
       console.error("Failed to check warmup status:", error);

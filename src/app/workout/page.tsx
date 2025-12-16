@@ -2,11 +2,11 @@
 
 import { getWorkoutRoutines } from "@/app/actions/workout";
 import {
-  abandonWorkoutSession,
-  completeWorkoutSession,
-  getActiveSession,
-  getResumePosition,
-  startWorkoutSession
+    abandonWorkoutSession,
+    completeWorkoutSession,
+    getActiveSession,
+    getResumePosition,
+    startWorkoutSession
 } from "@/app/actions/workout-session";
 import { ExerciseLogger } from "@/components/workout/ExerciseLogger";
 import { PostWorkoutData, PostWorkoutModal } from "@/components/workout/PostWorkoutModal";
@@ -17,6 +17,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Dumbbell } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 type Stage = 'loading' | 'select' | 'pre-workout' | 'warmup' | 'exercise' | 'post-workout';
 
@@ -86,7 +87,7 @@ export default function WorkoutPage() {
       setStage('warmup');
     } catch (error: any) {
       console.error("Failed to start session:", error);
-      alert(error.message || "Failed to start workout");
+      toast.error(error.message || "Failed to start workout");
     }
   };
 

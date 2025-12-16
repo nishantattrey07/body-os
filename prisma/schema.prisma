@@ -120,6 +120,7 @@ model InventoryItem {
   logs            NutritionLog[]
   
   @@unique([name, userId])
+  @@index([isActive])
 }
 
 model NutritionLog {
@@ -133,6 +134,8 @@ model NutritionLog {
   
   userId          String
   user            User          @relation(fields: [userId], references: [id])
+  
+  @@index([userId, timestamp])
 }
 
 model Exercise {
@@ -196,6 +199,8 @@ model WaterLog {
   amount    Float    // in ml
   userId    String
   user      User     @relation(fields: [userId], references: [id])
+  
+  @@index([userId, timestamp])
 }
 
 model WorkoutRoutine {

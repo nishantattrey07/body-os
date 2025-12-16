@@ -4,6 +4,7 @@ import { createDailyLog } from "@/app/actions/daily-log";
 import { BigButton } from "@/components/ui/BigButton";
 import { motion } from "framer-motion";
 import { useState } from "react";
+import { toast } from "sonner";
 
 interface MorningCheckInProps {
   onComplete: () => void;
@@ -27,7 +28,7 @@ export function MorningCheckIn({ onComplete, cutoffHour = 5, cutoffMinute = 30 }
         onComplete();
       } catch (error) {
         console.error("Failed to create daily log:", error);
-        alert("Failed to save check-in. Please try again.");
+        toast.error("Failed to save check-in. Please try again.");
       } finally {
         setSubmitting(false);
       }

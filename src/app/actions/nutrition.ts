@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { getDailyLogKey, getUTCDayBounds } from "@/lib/date-utils";
+import { getUserCutoff } from "@/lib/defaults";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -26,6 +27,7 @@ export async function getInventoryItems() {
 
 /**
  * Log nutrition intake (one-tap logging)
+ * Returns the nutrition log AND updated daily totals for client sync
  */
 export async function logNutrition(
     inventoryItemId: string,
@@ -52,10 +54,19 @@ export async function logNutrition(
             },
         });
 
-        // Update daily totals
-        await updateDailyNutritionTotals(session.user.id, new Date());
+        // Update daily totals and get the updated values
+        const dailyTotals = await updateDailyNutritionTotals(session.user.id, new Date());
 
-        return nutritionLog;
+        // Return both the log and the authoritative totals
+        return {
+            nutritionLog,
+            dailyTotals: dailyTotals ?? {
+                proteinTotal: 0,
+                carbsTotal: 0,
+                fatsTotal: 0,
+                caloriesTotal: 0,
+            },
+        };
     } catch (error) {
         console.error("Failed to log nutrition:", error);
         throw error;
@@ -72,7 +83,8 @@ export async function getTodayNutritionLogs() {
             return [];
         }
 
-        const { start, end } = getUTCDayBounds();
+        const cutoff = await getUserCutoff(session.user.id);
+        const { start, end } = getUTCDayBounds(undefined, cutoff.hour, cutoff.minute);
         const nutritionLogs = await prisma.nutritionLog.findMany({
             where: {
                 userId: session.user.id,
@@ -104,7 +116,8 @@ export async function getNutritionTotals(date: Date) {
             return { protein: 0, carbs: 0, fat: 0, calories: 0 };
         }
 
-        const { start, end } = getUTCDayBounds(date);
+        const cutoff = await getUserCutoff(session.user.id);
+        const { start, end } = getUTCDayBounds(date, cutoff.hour, cutoff.minute);
         const logs = await prisma.nutritionLog.findMany({
             where: {
                 userId: session.user.id,
@@ -160,10 +173,12 @@ export async function toggleInventoryItem(itemId: string, isActive: boolean) {
 
 /**
  * INTERNAL: Update daily nutrition totals (auto-aggregation)
+ * Returns the calculated totals for client sync
  */
 async function updateDailyNutritionTotals(userId: string, date: Date) {
     try {
-        const { start, end } = getUTCDayBounds(date);
+        const cutoff = await getUserCutoff(userId);
+        const { start, end } = getUTCDayBounds(date, cutoff.hour, cutoff.minute);
         const logs = await prisma.nutritionLog.findMany({
             where: {
                 userId,
@@ -191,7 +206,7 @@ async function updateDailyNutritionTotals(userId: string, date: Date) {
             where: {
                 userId_date: {
                     userId,
-                    date: getDailyLogKey(date),
+                    date: getDailyLogKey(date, cutoff.hour, cutoff.minute),
                 },
             },
             update: {
@@ -202,14 +217,23 @@ async function updateDailyNutritionTotals(userId: string, date: Date) {
             },
             create: {
                 userId,
-                date: getDailyLogKey(date),
+                date: getDailyLogKey(date, cutoff.hour, cutoff.minute),
                 proteinTotal: totals.protein,
                 carbsTotal: totals.carbs,
                 fatsTotal: totals.fats,
                 caloriesTotal: totals.calories,
             },
         });
+
+        // Return the calculated totals for client sync
+        return {
+            proteinTotal: totals.protein,
+            carbsTotal: totals.carbs,
+            fatsTotal: totals.fats,
+            caloriesTotal: totals.calories,
+        };
     } catch (error) {
         console.error('Failed to update daily nutrition totals:', error);
+        return null;
     }
 }

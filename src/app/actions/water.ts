@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import { getDailyLogKey, getUTCDayBounds } from "@/lib/date-utils";
+import { getUserCutoff } from "@/lib/defaults";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -43,7 +44,8 @@ export async function getTodayWaterLogs() {
             return [];
         }
 
-        const { start, end } = getUTCDayBounds();
+        const cutoff = await getUserCutoff(session.user.id);
+        const { start, end } = getUTCDayBounds(undefined, cutoff.hour, cutoff.minute);
         const waterLogs = await prisma.waterLog.findMany({
             where: {
                 userId: session.user.id,
@@ -72,7 +74,8 @@ export async function getWaterTotal(date: Date) {
             return 0;
         }
 
-        const { start, end } = getUTCDayBounds(date);
+        const cutoff = await getUserCutoff(session.user.id);
+        const { start, end } = getUTCDayBounds(date, cutoff.hour, cutoff.minute);
         const waterLogs = await prisma.waterLog.findMany({
             where: {
                 userId: session.user.id,
@@ -95,7 +98,8 @@ export async function getWaterTotal(date: Date) {
  * Internal: Update daily water total
  */
 async function updateDailyWaterTotal(userId: string, date: Date) {
-    const { start, end } = getUTCDayBounds(date);
+    const cutoff = await getUserCutoff(userId);
+    const { start, end } = getUTCDayBounds(date, cutoff.hour, cutoff.minute);
     const waterLogs = await prisma.waterLog.findMany({
         where: {
             userId,
@@ -109,7 +113,7 @@ async function updateDailyWaterTotal(userId: string, date: Date) {
     const waterTotal = waterLogs.reduce((sum, log) => sum + log.amount, 0);
 
     // Find or create daily log
-    const normalizedDate = getDailyLogKey(date);
+    const normalizedDate = getDailyLogKey(date, cutoff.hour, cutoff.minute);
 
     await prisma.dailyLog.upsert({
         where: {
