@@ -4,17 +4,9 @@ import { NutritionGrid } from "@/components/nutrition/NutritionGrid";
 import { BigButton } from "@/components/ui/BigButton";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 export default function NutritionPage() {
   const router = useRouter();
-  const [showSuccess, setShowSuccess] = useState(false);
-
-  const handleLog = (protein: number) => {
-    // Show quick feedback
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 2000);
-  };
 
   return (
     <div className="min-h-screen bg-background p-6 max-w-md mx-auto flex flex-col">
@@ -30,15 +22,8 @@ export default function NutritionPage() {
         </h1>
       </div>
 
-      {/* Success Toast */}
-      {showSuccess && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg z-50 animate-in slide-in-from-top">
-          ✓ Logged successfully!
-        </div>
-      )}
-
       <div className="flex-1">
-        <NutritionGrid onLog={handleLog} />
+        <NutritionGrid />
       </div>
 
       {/* Manual Entry Fallback */}

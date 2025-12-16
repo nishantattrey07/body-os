@@ -1,4 +1,4 @@
-import { getInventoryItems } from '@/app/actions';
+import { getInventoryItems } from '@/app/actions/nutrition';
 import { create } from 'zustand';
 
 interface InventoryItem {
@@ -6,7 +6,10 @@ interface InventoryItem {
     name: string;
     icon: string;
     proteinPerUnit: number;
+    carbsPerUnit: number;
+    fatPerUnit: number;
     caloriesPerUnit: number;
+    isActive: boolean;
 }
 
 interface InventoryStore {
