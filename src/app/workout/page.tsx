@@ -192,9 +192,10 @@ export default function WorkoutPage() {
   // Get session exercise ID for logging
   const sessionExerciseId = activeSession?.exercises?.[currentExerciseIndex]?.id;
 
-  // Calculate workout stats for post-workout modal - use local state for accuracy
-  const workoutDuration = workoutStartTime 
-    ? Math.floor((new Date().getTime() - workoutStartTime.getTime()) / 60000) 
+  // Calculate workout stats for post-workout modal
+  // Use activeSeconds from session (tracked server-side) for accuracy
+  const workoutDuration = activeSession?.activeSeconds 
+    ? Math.floor(activeSession.activeSeconds / 60) 
     : 0;
 
   return (

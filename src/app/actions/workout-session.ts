@@ -151,6 +151,7 @@ export async function startWorkoutSession(data: {
 
 /**
  * Log a single set (crash-proof - saves immediately)
+ * Also tracks active workout time by calculating delta since last activity
  */
 export async function logSet(data: {
     sessionExerciseId: string;
@@ -172,6 +173,34 @@ export async function logSet(data: {
 }) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Unauthorized");
+
+    // Get the session exercise to find the parent workout session
+    const sessionExercise = await prisma.sessionExercise.findUnique({
+        where: { id: data.sessionExerciseId },
+        include: { session: true },
+    });
+
+    if (!sessionExercise) throw new Error("Session exercise not found");
+
+    const now = new Date();
+    const workoutSession = sessionExercise.session;
+
+    // Calculate time delta since last activity (or session start)
+    const lastActivity = workoutSession.lastActivityAt || workoutSession.startedAt;
+    const deltaMs = now.getTime() - lastActivity.getTime();
+
+    // Cap delta at 5 minutes (300 seconds) to avoid counting long pauses
+    // If user was away for >5 min, we assume they paused
+    const deltaSeconds = Math.min(Math.floor(deltaMs / 1000), 300);
+
+    // Update session's activeSeconds and lastActivityAt
+    await prisma.workoutSession.update({
+        where: { id: workoutSession.id },
+        data: {
+            activeSeconds: workoutSession.activeSeconds + deltaSeconds,
+            lastActivityAt: now,
+        },
+    });
 
     const setLog = await prisma.setLog.create({
         data: {

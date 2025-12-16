@@ -305,6 +305,8 @@ model WorkoutSession {
   // === TIMING ===
   startedAt          DateTime          @default(now())
   completedAt        DateTime?
+  activeSeconds      Int               @default(0)  // Accumulated active workout time (excludes pauses)
+  lastActivityAt     DateTime?                      // Last set logged, for delta calculation
   timeOfDay          String?           // "morning", "afternoon", "evening", "night"
   
   // === STATUS (for resume logic) ===
