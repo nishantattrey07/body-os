@@ -51,6 +51,10 @@ const initialState: DailyStats = {
     waterTarget: 4000,
 };
 
+// 🔑 Request version counter for handling out-of-order responses
+// Incremented with each nutrition log request, allows ignoring stale responses
+let nutritionRequestVersion = 0;
+
 export const useDailyStore = create<DailyStatsStore>((set, get) => ({
     ...initialState,
     loading: false,
@@ -142,6 +146,10 @@ export const useDailyStore = create<DailyStatsStore>((set, get) => ({
     logNutritionItem: async (item: InventoryItem) => {
         const state = get();
 
+        // 🔑 Increment request version and capture it for this request
+        nutritionRequestVersion++;
+        const thisRequestVersion = nutritionRequestVersion;
+
         // Capture current state for rollback
         const previousState = {
             proteinTotal: state.proteinTotal || 0,
@@ -166,9 +174,9 @@ export const useDailyStore = create<DailyStatsStore>((set, get) => ({
             const { logNutrition } = await import('@/app/actions/nutrition');
             const result = await logNutrition(item.id, 1);
 
-            // 3. ✅ Trust Server Values (no reconciliation needed)
-            // Server calculated the true totals, use them directly
-            if (result.dailyTotals) {
+            // 3. ✅ Only apply server response if this is still the latest request
+            // If another request was made after this one, ignore this response
+            if (thisRequestVersion === nutritionRequestVersion && result.dailyTotals) {
                 set({
                     proteinTotal: result.dailyTotals.proteinTotal,
                     carbsTotal: result.dailyTotals.carbsTotal,
@@ -176,12 +184,15 @@ export const useDailyStore = create<DailyStatsStore>((set, get) => ({
                     caloriesTotal: result.dailyTotals.caloriesTotal,
                 });
             }
+            // If stale response, the optimistic update already shows correct value
 
         } catch (error) {
             console.error('Failed to log nutrition:', error);
 
-            // 4. ❌ Rollback on Error
-            set(previousState);
+            // 4. ❌ Only rollback if this is still the latest request
+            if (thisRequestVersion === nutritionRequestVersion) {
+                set(previousState);
+            }
 
             throw error; // Let caller show toast
         }
