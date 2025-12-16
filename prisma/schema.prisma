@@ -90,6 +90,10 @@ model UserSettings {
   caloriesTarget   Float    @default(2000)
   waterTarget      Float    @default(4000)
   
+  // Day Boundary Customization
+  dayCutoffHour    Int      @default(5)
+  dayCutoffMinute  Int      @default(30)
+  
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }

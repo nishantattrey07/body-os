@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { endOfDay, startOfDay } from "@/lib/date-utils";
+import { getDailyLogKey, getUTCDayBounds } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -72,13 +72,13 @@ export async function getTodayNutritionLogs() {
             return [];
         }
 
-        const today = new Date();
+        const { start, end } = getUTCDayBounds();
         const nutritionLogs = await prisma.nutritionLog.findMany({
             where: {
                 userId: session.user.id,
                 timestamp: {
-                    gte: startOfDay(today),
-                    lte: endOfDay(today),
+                    gte: start,
+                    lte: end,
                 },
             },
             include: {
@@ -104,12 +104,13 @@ export async function getNutritionTotals(date: Date) {
             return { protein: 0, carbs: 0, fat: 0, calories: 0 };
         }
 
+        const { start, end } = getUTCDayBounds(date);
         const logs = await prisma.nutritionLog.findMany({
             where: {
                 userId: session.user.id,
                 timestamp: {
-                    gte: startOfDay(date),
-                    lte: endOfDay(date),
+                    gte: start,
+                    lte: end,
                 },
             },
             include: {
@@ -162,12 +163,13 @@ export async function toggleInventoryItem(itemId: string, isActive: boolean) {
  */
 async function updateDailyNutritionTotals(userId: string, date: Date) {
     try {
+        const { start, end } = getUTCDayBounds(date);
         const logs = await prisma.nutritionLog.findMany({
             where: {
                 userId,
                 timestamp: {
-                    gte: startOfDay(date),
-                    lte: endOfDay(date),
+                    gte: start,
+                    lte: end,
                 },
             },
             include: {
@@ -189,7 +191,7 @@ async function updateDailyNutritionTotals(userId: string, date: Date) {
             where: {
                 userId_date: {
                     userId,
-                    date: startOfDay(date),
+                    date: getDailyLogKey(date),
                 },
             },
             update: {
@@ -200,7 +202,7 @@ async function updateDailyNutritionTotals(userId: string, date: Date) {
             },
             create: {
                 userId,
-                date: startOfDay(date),
+                date: getDailyLogKey(date),
                 proteinTotal: totals.protein,
                 carbsTotal: totals.carbs,
                 fatsTotal: totals.fats,

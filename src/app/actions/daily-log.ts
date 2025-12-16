@@ -1,25 +1,29 @@
 "use server";
 
 import { auth } from "@/auth";
-import { daysAgo, endOfDay, startOfDay } from "@/lib/date-utils";
+import { daysAgo, getDailyLogKey, getUTCDayBounds } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 /**
  * Create or update daily log (morning check-in)
  */
-export async function createDailyLog(data: {
-    weight?: number;
-    sleepHours?: number;
-    sleepQuality?: number;
-    mood?: string;
-}) {
+export async function createDailyLog(
+    data: {
+        weight?: number;
+        sleepHours?: number;
+        sleepQuality?: number;
+        mood?: string;
+    },
+    cutoffHour: number = 5,
+    cutoffMinute: number = 30
+) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
             throw new Error("Unauthorized");
         }
 
-        const today = startOfDay(new Date());
+        const today = getDailyLogKey(undefined, cutoffHour, cutoffMinute);
 
         const log = await prisma.dailyLog.upsert({
             where: {
@@ -54,14 +58,17 @@ export async function createDailyLog(data: {
 /**
  * Get today's daily log
  */
-export async function getTodayLog() {
+export async function getTodayLog(
+    cutoffHour: number = 5,
+    cutoffMinute: number = 30
+) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
             return null;
         }
 
-        const today = startOfDay(new Date());
+        const today = getDailyLogKey(undefined, cutoffHour, cutoffMinute);
 
         const log = await prisma.dailyLog.findUnique({
             where: {
@@ -92,7 +99,7 @@ export async function markBloated(bloated: boolean) {
             throw new Error("Unauthorized");
         }
 
-        const today = startOfDay(new Date());
+        const today = getDailyLogKey();
 
         const log = await prisma.dailyLog.upsert({
             where: {
@@ -135,7 +142,7 @@ export async function submitDailyReview(data: {
             throw new Error("Unauthorized");
         }
 
-        const today = startOfDay(new Date());
+        const today = getDailyLogKey();
 
         // Ensure daily log exists
         const dailyLog = await prisma.dailyLog.upsert({
@@ -250,12 +257,15 @@ export async function getDailyLogs(startDate: Date, endDate: Date) {
             return [];
         }
 
+        const { start, end } = getUTCDayBounds(startDate);
+        const endBounds = getUTCDayBounds(endDate);
+
         const logs = await prisma.dailyLog.findMany({
             where: {
                 userId: session.user.id,
                 date: {
-                    gte: startOfDay(startDate),
-                    lte: endOfDay(endDate),
+                    gte: start,
+                    lte: endBounds.end,
                 },
             },
             include: {

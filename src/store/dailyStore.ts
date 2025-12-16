@@ -140,6 +140,8 @@ export const useDailyStore = create<DailyStatsStore>((set, get) => ({
 
     logNutritionItem: async (item: any) => {
         const state = get();
+
+        // Capture current state for rollback
         const previousState = {
             proteinTotal: state.proteinTotal || 0,
             carbsTotal: state.carbsTotal || 0,
@@ -147,32 +149,54 @@ export const useDailyStore = create<DailyStatsStore>((set, get) => ({
             caloriesTotal: state.caloriesTotal || 0,
         };
 
-        // 1. Optimistic Update
-        set({
+        // Calculate expected new totals
+        const optimisticState = {
             proteinTotal: previousState.proteinTotal + (item.proteinPerUnit || 0),
             carbsTotal: previousState.carbsTotal + (item.carbsPerUnit || 0),
             fatsTotal: previousState.fatsTotal + (item.fatPerUnit || 0),
             caloriesTotal: previousState.caloriesTotal + (item.caloriesPerUnit || 0),
-        });
+        };
 
-        // 2. Server Action
+        // 1. ⚡ Optimistic Update (Instant feedback)
+        set(optimisticState);
+
         try {
-            // Re-import to avoid circular dependency issues if any, though likely fine here
+            // 2. 🌐 Background Server Request
             const { logNutrition } = await import('@/app/actions/nutrition');
             await logNutrition(item.id, 1);
 
-            // Success - do nothing (state is already correct) or maybe re-validate if specific logic needed
+            // 3. ✅ Verify & Reconcile (Silent sync if server differs)
+            const freshLog = await getTodayLog();
+
+            if (freshLog) {
+                // Check if server calculated differently (bloat detection, rounding, etc.)
+                const serverDiffers =
+                    freshLog.proteinTotal !== optimisticState.proteinTotal ||
+                    freshLog.carbsTotal !== optimisticState.carbsTotal ||
+                    freshLog.fatsTotal !== optimisticState.fatsTotal ||
+                    freshLog.caloriesTotal !== optimisticState.caloriesTotal;
+
+                if (serverDiffers) {
+                    // Silently sync to server's authoritative values
+                    console.log('[Reconciliation] Server calculated different totals, syncing...');
+                    set({
+                        proteinTotal: freshLog.proteinTotal || 0,
+                        carbsTotal: freshLog.carbsTotal || 0,
+                        fatsTotal: freshLog.fatsTotal || 0,
+                        caloriesTotal: freshLog.caloriesTotal || 0,
+                        waterTotal: freshLog.waterTotal || 0,
+                    });
+                }
+                // If server matches, do nothing (keep optimistic state)
+            }
+
         } catch (error) {
             console.error('Failed to log nutrition:', error);
 
-            // 3. Rollback on Failure
-            set({
-                proteinTotal: previousState.proteinTotal,
-                carbsTotal: previousState.carbsTotal,
-                fatsTotal: previousState.fatsTotal,
-                caloriesTotal: previousState.caloriesTotal,
-            });
-            throw error; // Let caller handle UI feedback (Toast)
+            // 4. ❌ Rollback on Error
+            set(previousState);
+
+            throw error; // Let caller show toast
         }
     },
 

@@ -17,6 +17,8 @@ export default function SettingsPage() {
     fatsTarget: 60,
     caloriesTarget: 2000,
     waterTarget: 4000,
+    dayCutoffHour: 5,
+    dayCutoffMinute: 30,
   });
 
   useEffect(() => {
@@ -115,6 +117,60 @@ export default function SettingsPage() {
           onChange={(v) => setTargets({ ...targets, waterTarget: v })}
           color="bg-cyan-100 border-cyan-300"
         />
+
+        {/* Day Start Time */}
+        <div className="rounded-3xl p-6 border-2 bg-purple-100 border-purple-300">
+          <label className="text-sm font-bold text-zinc-700 uppercase tracking-wider mb-2 block">
+            Day Start Time
+          </label>
+          <p className="text-xs text-zinc-600 mb-4">
+            Activities before this time are logged to the previous day
+          </p>
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1 block">
+                Hour
+              </label>
+              <input
+                type="number"
+                value={targets.dayCutoffHour}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  if (val >= 0 && val <= 23) {
+                    setTargets({ ...targets, dayCutoffHour: val });
+                  }
+                }}
+                className="w-full text-3xl font-bold font-heading text-foreground bg-white/50 rounded-xl px-4 py-2 border-none outline-none"
+                min="0"
+                max="23"
+                step="1"
+              />
+            </div>
+            <span className="text-3xl font-bold text-zinc-400 mt-6">:</span>
+            <div className="flex-1">
+              <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1 block">
+                Minute
+              </label>
+              <input
+                type="number"
+                value={targets.dayCutoffMinute}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  if (val >= 0 && val <= 59) {
+                    setTargets({ ...targets, dayCutoffMinute: val });
+                  }
+                }}
+                className="w-full text-3xl font-bold font-heading text-foreground bg-white/50 rounded-xl px-4 py-2 border-none outline-none"
+                min="0"
+                max="59"
+                step="1"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-zinc-500 mt-3">
+            💡 Recommended: <strong>5:30 AM</strong> (aligns with circadian rhythm)
+          </p>
+        </div>
       </div>
 
       {/* Save Button */}

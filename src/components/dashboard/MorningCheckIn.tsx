@@ -7,9 +7,11 @@ import { useState } from "react";
 
 interface MorningCheckInProps {
   onComplete: () => void;
+  cutoffHour?: number;
+  cutoffMinute?: number;
 }
 
-export function MorningCheckIn({ onComplete }: MorningCheckInProps) {
+export function MorningCheckIn({ onComplete, cutoffHour = 5, cutoffMinute = 30 }: MorningCheckInProps) {
   const [weight, setWeight] = useState<string>("");
   const [sleep, setSleep] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
@@ -21,7 +23,7 @@ export function MorningCheckIn({ onComplete }: MorningCheckInProps) {
         await createDailyLog({
           weight: parseFloat(weight),
           sleepHours: parseFloat(sleep),
-        });
+        }, cutoffHour, cutoffMinute);
         onComplete();
       } catch (error) {
         console.error("Failed to create daily log:", error);

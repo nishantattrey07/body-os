@@ -5,7 +5,7 @@ export default auth((req) => {
     const isLoggedIn = !!req.auth;
     const { pathname } = req.nextUrl;
 
-    console.log('[Middleware]', { pathname, isLoggedIn, auth: req.auth });
+    // console.log('[Middleware]', { pathname, isLoggedIn, auth: req.auth });
 
     // Public routes
     const isPublicRoute = pathname === "/login" || pathname === "/register";

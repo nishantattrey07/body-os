@@ -2,7 +2,7 @@
 
 import { useDailyStore } from "@/store/dailyStore";
 import { useInventoryStore } from "@/store/inventoryStore";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -13,17 +13,17 @@ interface FoodCardProps {
   icon: string; // emoji
   protein: number;
   disabled: boolean;
-  onTap: (id: string) => void;
+  onTap: (id: string, event: React.MouseEvent) => void;
 }
 
 function FoodCard({ name, icon, protein, disabled, onTap, id }: FoodCardProps) {
   const [tapped, setTapped] = useState(false);
 
-  const handleTap = async () => {
+  const handleTap = async (e: React.MouseEvent) => {
     if (disabled) return;
     
     setTapped(true);
-    await onTap(id);
+    await onTap(id, e);
     
     // Reset animation after delay
     setTimeout(() => setTapped(false), 800);
@@ -44,6 +44,8 @@ function FoodCard({ name, icon, protein, disabled, onTap, id }: FoodCardProps) {
       `}
       whileTap={!disabled ? { scale: 0.96 } : {}}
     >
+
+
       {/* Emoji Icon */}
       <div className="text-5xl filter drop-shadow-md transition-transform duration-300 group-hover:scale-110" role="img">{icon}</div>
       
@@ -66,7 +68,7 @@ function FoodCard({ name, icon, protein, disabled, onTap, id }: FoodCardProps) {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-        />
+          />
       )}
 
       {/* Disabled Overlay */}
@@ -104,12 +106,37 @@ export function NutritionGrid({ onLog }: NutritionGridProps) {
     loadTodayLog();
   }, []);
 
-  const handleTap = async (itemId: string) => {
+  // Animation State
+  const [floatingParticles, setFloatingParticles] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
+
+  // ... existing hooks ...
+
+  const handleTap = async (itemId: string, event: React.MouseEvent) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
 
+    // Trigger Floating Animation
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const particleId = Date.now();
+    
+    setFloatingParticles(prev => [
+      ...prev, 
+      { 
+        id: particleId, 
+        x: rect.left + rect.width / 2, 
+        y: rect.top, 
+        text: `+${item.proteinPerUnit}g` 
+      }
+    ]);
+
+    // Cleanup particle
+    setTimeout(() => {
+      setFloatingParticles(prev => prev.filter(p => p.id !== particleId));
+    }, 1500);
+
     try {
       // Optimistic update via store
+  // ... existing logic ...
       await logNutritionItem(item);
       
       // Notify parent (legacy support)
@@ -189,6 +216,22 @@ export function NutritionGrid({ onLog }: NutritionGridProps) {
           <span className="text-sm">Please add items to inventory.</span>
         </p>
       )}
+      {/* Global Floating Particles */}
+      <AnimatePresence>
+        {floatingParticles.map(particle => (
+          <motion.div
+            key={particle.id}
+            initial={{ opacity: 1, y: particle.y, x: particle.x, scale: 0.5 }}
+            animate={{ opacity: 0, y: particle.y - 200, scale: 1.2 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 2, ease: "easeOut" }}
+            className="fixed z-[100] pointer-events-none text-green-600 font-bold text-2xl font-heading -translate-x-1/2"
+            style={{ left: 0, top: 0 }} // Positioning handled by motion values
+          >
+            {particle.text}
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { MacroGauge } from "@/components/dashboard/MacroGauge";
 import { MorningCheckIn } from "@/components/dashboard/MorningCheckIn";
 import { StatusIndicator } from "@/components/dashboard/StatusIndicator";
 import { WaterTracker } from "@/components/dashboard/WaterTracker";
+import { isPastDayCutoff } from "@/lib/date-utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { Dumbbell, Settings, TrendingUp, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -23,7 +24,21 @@ export function DashboardClient({ initialLog, initialSettings }: DashboardClient
   // Calculate initial check-in state
   const hasCompletedCheckIn = initialLog?.weight && initialLog?.sleepHours;
   
-  const [needsCheckIn, setNeedsCheckIn] = useState(!hasCompletedCheckIn);
+  // Check if we're past the user's day cutoff
+  // Use defaults if migration hasn't run yet
+  const cutoffHour = initialSettings.dayCutoffHour ?? 5;
+  const cutoffMinute = initialSettings.dayCutoffMinute ?? 30;
+  
+  const isPastCutoff = isPastDayCutoff(
+    undefined,
+    cutoffHour,
+    cutoffMinute
+  );
+  
+  // Only show check-in if:
+  // 1. Not completed yet AND
+  // 2. We're past the cutoff time (e.g., after 5:30 AM)
+  const [needsCheckIn, setNeedsCheckIn] = useState(!hasCompletedCheckIn && isPastCutoff);
   const [dailyLog, setDailyLog] = useState<any>(initialLog);
   const [settings, setSettings] = useState<any>(initialSettings);
 
@@ -132,7 +147,12 @@ export function DashboardClient({ initialLog, initialSettings }: DashboardClient
       
       <AnimatePresence mode="wait">
         {needsCheckIn ? (
-          <MorningCheckIn key="morning" onComplete={handleCheckInComplete} />
+          <MorningCheckIn 
+            key="morning" 
+            onComplete={handleCheckInComplete}
+            cutoffHour={cutoffHour}
+            cutoffMinute={cutoffMinute}
+          />
         ) : (
           <motion.div 
             key="dashboard"
@@ -219,11 +239,9 @@ export function DashboardClient({ initialLog, initialSettings }: DashboardClient
               )}
 
               {/* Water Tracker */}
-              <div className="mt-8 w-full">
-                <WaterTracker 
-                target={settings.waterTarget} 
-                onUpdate={loadData}
-              />
+              {/* Water Tracker */}
+              <div className="w-full px-6 mt-6">
+                <WaterTracker />
               </div>
             </div>
 

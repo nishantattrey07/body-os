@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { endOfDay, startOfDay } from "@/lib/date-utils";
+import { getDailyLogKey, getUTCDayBounds } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -43,13 +43,13 @@ export async function getTodayWaterLogs() {
             return [];
         }
 
-        const today = new Date();
+        const { start, end } = getUTCDayBounds();
         const waterLogs = await prisma.waterLog.findMany({
             where: {
                 userId: session.user.id,
                 timestamp: {
-                    gte: startOfDay(today),
-                    lte: endOfDay(today),
+                    gte: start,
+                    lte: end,
                 },
             },
             orderBy: { timestamp: 'desc' },
@@ -72,12 +72,13 @@ export async function getWaterTotal(date: Date) {
             return 0;
         }
 
+        const { start, end } = getUTCDayBounds(date);
         const waterLogs = await prisma.waterLog.findMany({
             where: {
                 userId: session.user.id,
                 timestamp: {
-                    gte: startOfDay(date),
-                    lte: endOfDay(date),
+                    gte: start,
+                    lte: end,
                 },
             },
         });
@@ -94,12 +95,13 @@ export async function getWaterTotal(date: Date) {
  * Internal: Update daily water total
  */
 async function updateDailyWaterTotal(userId: string, date: Date) {
+    const { start, end } = getUTCDayBounds(date);
     const waterLogs = await prisma.waterLog.findMany({
         where: {
             userId,
             timestamp: {
-                gte: startOfDay(date),
-                lte: endOfDay(date),
+                gte: start,
+                lte: end,
             },
         },
     });
@@ -107,7 +109,7 @@ async function updateDailyWaterTotal(userId: string, date: Date) {
     const waterTotal = waterLogs.reduce((sum, log) => sum + log.amount, 0);
 
     // Find or create daily log
-    const normalizedDate = startOfDay(date);
+    const normalizedDate = getDailyLogKey(date);
 
     await prisma.dailyLog.upsert({
         where: {

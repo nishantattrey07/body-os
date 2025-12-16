@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
-import { endOfDay, startOfDay } from "@/lib/date-utils";
+import { getDailyLogKey } from "@/lib/date-utils";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -61,15 +61,12 @@ export async function getTodayWarmupProgress() {
             return [];
         }
 
-        const today = startOfDay(new Date());
+        const today = getDailyLogKey();
 
         const logs = await prisma.warmupLog.findMany({
             where: {
                 userId: session.user.id,
-                date: {
-                    gte: today,
-                    lte: endOfDay(new Date()),
-                },
+                date: today,
             },
             include: {
                 warmupChecklist: true,
@@ -93,7 +90,7 @@ export async function toggleWarmupItem(warmupChecklistId: string, completed: boo
             throw new Error("Unauthorized");
         }
 
-        const today = startOfDay(new Date());
+        const today = getDailyLogKey();
 
         const log = await prisma.warmupLog.upsert({
             where: {
@@ -142,7 +139,7 @@ export async function isWarmupComplete() {
             return false;
         }
 
-        const today = startOfDay(new Date());
+        const today = getDailyLogKey();
 
         // Get all warmup items
         const allWarmups = await prisma.warmupChecklist.findMany();
@@ -151,10 +148,7 @@ export async function isWarmupComplete() {
         const completedWarmups = await prisma.warmupLog.findMany({
             where: {
                 userId: session.user.id,
-                date: {
-                    gte: today,
-                    lte: endOfDay(new Date()),
-                },
+                date: today,
                 completed: true,
             },
         });
