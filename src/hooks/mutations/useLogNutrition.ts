@@ -26,8 +26,7 @@ export function useLogNutrition() {
             // Call Server Action
             const result = await logNutrition(item.id, quantity);
 
-            // Server Action wrapper pattern: throw if failed
-            // (Server Actions resolve with errors instead of rejecting)
+            // Server Action throws on error, but check for null result too
             if (!result) {
                 throw new Error('Failed to log nutrition');
             }
@@ -36,21 +35,21 @@ export function useLogNutrition() {
         },
 
         // Optimistic Update - runs immediately before server call
-        onMutate: async ({ item }) => {
+        onMutate: async ({ item, quantity = 1 }) => {
             // Cancel any outgoing refetches
             await queryClient.cancelQueries({ queryKey: queryKeys.dailyLog() });
 
             // Snapshot current value for rollback
             const previousLog = queryClient.getQueryData<DailyLog>(queryKeys.dailyLog());
 
-            // Optimistically update the cache
+            // Optimistically update the cache (multiply by quantity!)
             if (previousLog) {
                 queryClient.setQueryData<DailyLog>(queryKeys.dailyLog(), {
                     ...previousLog,
-                    proteinTotal: previousLog.proteinTotal + (item.proteinPerUnit || 0),
-                    carbsTotal: previousLog.carbsTotal + (item.carbsPerUnit || 0),
-                    fatsTotal: previousLog.fatsTotal + (item.fatPerUnit || 0),
-                    caloriesTotal: previousLog.caloriesTotal + (item.caloriesPerUnit || 0),
+                    proteinTotal: previousLog.proteinTotal + ((item.proteinPerUnit || 0) * quantity),
+                    carbsTotal: previousLog.carbsTotal + ((item.carbsPerUnit || 0) * quantity),
+                    fatsTotal: previousLog.fatsTotal + ((item.fatPerUnit || 0) * quantity),
+                    caloriesTotal: previousLog.caloriesTotal + ((item.caloriesPerUnit || 0) * quantity),
                 });
             }
 

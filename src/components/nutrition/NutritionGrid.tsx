@@ -128,7 +128,7 @@ export function NutritionGrid({ onLog }: NutritionGridProps) {
 
     try {
       // Use React Query mutation with optimistic updates
-      await logNutritionMutation.mutateAsync({ item });
+      await logNutritionMutation.mutateAsync({ item, quantity: 1 });
       
       // Notify parent (legacy support)
       onLog?.(item.proteinPerUnit);
