@@ -124,11 +124,14 @@ export async function startWorkoutSession(data: {
             programName: data.programName,
             mesocycleWeek: data.mesocycleWeek,
 
-            // Create session exercises from routine
+            // Create session exercises from routine (copy config!)
             exercises: {
                 create: routine.exercises.map((re) => ({
                     order: re.order,
                     exerciseId: re.exercise.id,
+                    targetSets: re.sets,
+                    targetReps: re.reps,
+                    restSeconds: re.restSeconds,
                 })),
             },
         },

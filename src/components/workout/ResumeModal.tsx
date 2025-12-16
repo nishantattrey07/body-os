@@ -1,8 +1,7 @@
 "use client";
 
-import { BigButton } from "@/components/ui/BigButton";
 import { motion } from "framer-motion";
-import { Play, RefreshCw, Timer, X } from "lucide-react";
+import { ArrowRight, ChevronRight, Clock, Pause, RotateCcw, Trash2 } from "lucide-react";
 
 interface ResumeModalProps {
   session: {
@@ -24,6 +23,7 @@ export function ResumeModal({ session, onResume, onAbandon, onStartFresh }: Resu
   const completedCount = session.exercises.filter(e => e.completedAt || e.skipped).length;
   const totalCount = session.exercises.length;
   const currentExercise = session.exercises.find(e => !e.completedAt && !e.skipped);
+  const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   
   const startedAt = new Date(session.startedAt);
   const now = new Date();
@@ -33,11 +33,11 @@ export function ResumeModal({ session, onResume, onAbandon, onStartFresh }: Resu
   
   let timeAgo = "";
   if (diffHours > 0) {
-    timeAgo = `${diffHours} hr${diffHours > 1 ? 's' : ''} ago`;
+    timeAgo = `${diffHours}h ${diffMins % 60}m ago`;
   } else if (diffMins > 0) {
-    timeAgo = `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+    timeAgo = `${diffMins} min ago`;
   } else {
-    timeAgo = "just now";
+    timeAgo = "Just now";
   }
 
   return (
@@ -45,88 +45,113 @@ export function ResumeModal({ session, onResume, onAbandon, onStartFresh }: Resu
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6"
     >
       <motion.div
-        initial={{ scale: 0.95, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="w-full max-w-sm flex flex-col items-center gap-6 bg-white p-8 rounded-[3rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] border border-white/50"
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+        className="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden"
       >
         {/* Header */}
-        <div className="text-center space-y-2">
-            <div className="flex justify-center mb-4">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Timer className="text-primary w-8 h-8 ml-0.5" /> {/* Optically centered */}
-                </div>
-            </div>
-          <h2 className="text-4xl font-bold uppercase tracking-tighter font-heading text-primary leading-none">
-            Unfinished Workout
+        <div className="p-6 pb-5 text-center border-b border-zinc-100">
+          {/* Pause Icon */}
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.1, type: "spring" }}
+            className="inline-flex items-center justify-center w-14 h-14 bg-amber-50 rounded-2xl mb-4"
+          >
+            <Pause size={24} className="text-amber-500" fill="currentColor" />
+          </motion.div>
+          
+          <h2 className="text-xl font-bold text-zinc-900 mb-1">
+            Workout Paused
           </h2>
-          <p className="text-zinc-400 font-medium text-sm tracking-wide flex items-center justify-center gap-2">
+          <p className="text-sm text-zinc-400 flex items-center justify-center gap-1.5">
+            <Clock size={13} />
             Started {timeAgo}
           </p>
         </div>
 
-        {/* Routine Info & Progress */}
-        <div className="w-full space-y-4 bg-zinc-50 rounded-3xl p-6 border border-zinc-100/50">
-          <div className="text-center space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 font-heading">
-                Current Routine
+        {/* Workout Details */}
+        <div className="p-5 space-y-4">
+          {/* Routine */}
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">
+              Routine
             </p>
-            <p className="text-2xl font-bold uppercase tracking-tight font-heading text-foreground">
+            <p className="text-lg font-semibold text-zinc-900">
               {session.routine?.name || "Custom Workout"}
             </p>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between items-center px-1">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 font-heading">Progress</span>
-              <span className="text-sm font-bold font-heading text-primary">
-                {completedCount}<span className="text-zinc-300 mx-0.5">/</span>{totalCount}
-              </span>
+          {/* Progress */}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                Progress
+              </p>
+              <p className="text-sm font-semibold text-zinc-900">
+                {completedCount} of {totalCount}
+              </p>
             </div>
-            <div className="w-full bg-zinc-200 rounded-full h-1.5 overflow-hidden">
-              <motion.div 
+            <div className="h-2 bg-zinc-100 rounded-full overflow-hidden">
+              <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: `${(completedCount / totalCount) * 100}%` }}
-                className="bg-primary h-full rounded-full"
+                animate={{ width: `${progressPercent}%` }}
+                transition={{ delay: 0.2, duration: 0.6, ease: "easeOut" }}
+                className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"
               />
             </div>
           </div>
 
+          {/* Up Next */}
           {currentExercise && (
-             <div className="text-center pt-2">
-                <p className="text-xs text-zinc-400 mb-1">Up Next</p>
-                <p className="text-sm font-bold text-zinc-700">{currentExercise.exercise.name}</p>
-             </div>
+            <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 mb-0.5">
+                  Continue with
+                </p>
+                <p className="text-sm font-semibold text-zinc-900">
+                  {currentExercise.exercise.name}
+                </p>
+              </div>
+              <ChevronRight size={20} className="text-zinc-300" />
+            </div>
           )}
         </div>
 
         {/* Actions */}
-        <div className="w-full space-y-3">
-          <BigButton 
+        <div className="p-5 pt-0 space-y-3">
+          {/* Primary */}
+          <motion.button
             onClick={onResume}
-            className="w-full shadow-[0_10px_30px_-10px_rgba(239,68,68,0.4)] flex flex-row items-center justify-center gap-3 !text-2xl py-6"
+            whileTap={{ scale: 0.98 }}
+            className="w-full h-12 rounded-xl bg-zinc-900 text-white font-semibold text-sm flex items-center justify-center gap-2 hover:bg-zinc-800 transition-colors"
           >
-            <Play className="w-6 h-6 fill-current shrink-0" />
-            <span className="whitespace-nowrap mt-1">Resume Session</span>
-          </BigButton>
+            Resume
+            <ArrowRight size={16} />
+          </motion.button>
           
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={onAbandon}
-              className="h-14 rounded-2xl bg-zinc-100 hover:bg-red-50 text-zinc-500 hover:text-red-500 font-bold text-sm uppercase tracking-wide transition-colors flex items-center justify-center gap-2 font-heading group"
-            >
-              <X size={18} className="group-hover:scale-110 transition-transform" />
-              <span className="mt-0.5">Abandon</span>
-            </button>
-            <button
+          {/* Secondary */}
+          <div className="flex gap-2">
+            <motion.button
               onClick={onStartFresh}
-              className="h-14 rounded-2xl bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-700 font-bold text-sm uppercase tracking-wide transition-colors flex items-center justify-center gap-2 font-heading group"
+              whileTap={{ scale: 0.97 }}
+              className="flex-1 h-11 rounded-xl bg-zinc-100 text-zinc-600 font-medium text-sm flex items-center justify-center gap-1.5 hover:bg-zinc-200 transition-colors"
             >
-              <RefreshCw size={18} className="group-hover:rotate-180 transition-transform duration-500" />
-              <span className="mt-0.5">Restart</span>
-            </button>
+              <RotateCcw size={14} />
+              Restart
+            </motion.button>
+            <motion.button
+              onClick={onAbandon}
+              whileTap={{ scale: 0.97 }}
+              className="flex-1 h-11 rounded-xl bg-zinc-100 text-zinc-600 font-medium text-sm flex items-center justify-center gap-1.5 hover:bg-red-50 hover:text-red-500 transition-colors"
+            >
+              <Trash2 size={14} />
+              Discard
+            </motion.button>
           </div>
         </div>
       </motion.div>

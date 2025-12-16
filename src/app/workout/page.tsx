@@ -188,7 +188,8 @@ export default function WorkoutPage() {
     }
   };
 
-  const handleExerciseComplete = (exerciseSetsCount: number) => {
+
+  const handleExerciseComplete = async (exerciseSetsCount: number) => {
     // Track sets locally
     setSetsLogged(prev => prev + exerciseSetsCount);
     
@@ -196,7 +197,13 @@ export default function WorkoutPage() {
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentExerciseIndex(prev => prev + 1);
     } else {
-      // Workout complete - show post-workout modal
+      // Workout complete - refresh session to get accurate activeSeconds before showing modal
+      if (activeSession) {
+        const refreshedSession = await getActiveSession();
+        if (refreshedSession) {
+          setActiveSession(refreshedSession);
+        }
+      }
       setStage('post-workout');
     }
   };
@@ -584,11 +591,10 @@ export default function WorkoutPage() {
               sessionExerciseId={sessionExerciseId}
               exercise={{
                 ...currentExercise,
-                // Override defaults with Routine-specific config
-                // currentSessionExercise IS the RoutineExercise which has sets/reps/restSeconds
-                defaultSets: currentSessionExercise?.sets || currentExercise.defaultSets,
-                defaultReps: currentSessionExercise?.reps || currentExercise.defaultReps,
-                restSeconds: currentSessionExercise?.restSeconds ?? currentExercise.restSeconds,
+                // Use session exercise config (copied from RoutineExercise at session start)
+                defaultSets: currentSessionExercise?.targetSets || currentExercise.defaultSets || 3,
+                defaultReps: currentSessionExercise?.targetReps || currentExercise.defaultReps || 10,
+                restSeconds: currentSessionExercise?.restSeconds ?? currentExercise.restSeconds ?? 90,
               }}
               onComplete={handleExerciseComplete} 
             />

@@ -365,6 +365,11 @@ model SessionExercise {
   id                 String          @id @default(uuid())
   order              Int             // Position in session
   
+  // Exercise configuration (copied from RoutineExercise at session start)
+  targetSets         Int             @default(3)
+  targetReps         Int             @default(10)
+  restSeconds        Int             @default(90)
+  
   // Timing
   startedAt          DateTime?
   completedAt        DateTime?

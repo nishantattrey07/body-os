@@ -3,7 +3,7 @@
 import { completeExercise, logSet } from "@/app/actions/workout-session";
 import { BlockerPicker } from "@/components/blockers/BlockerPicker";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, CheckCircle, Loader2, Minus, Plus } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle, Loader2, Minus, Plus, Timer } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -19,6 +19,8 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
   const [selectedBlockerId, setSelectedBlockerId] = useState<string | null>(null);
   const [logging, setLogging] = useState(false);
   const [restTimer, setRestTimer] = useState<number | null>(null);
+  const [restTimerMax, setRestTimerMax] = useState<number>(0);
+  const [restStartTime, setRestStartTime] = useState<Date | null>(null); // Track when rest period started
   const [swapSuggestion, setSwapSuggestion] = useState<any>(null);
   const [currentSet, setCurrentSet] = useState(1);
   const totalSets = exercise.defaultSets || 3;
@@ -28,6 +30,13 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
     
     setLogging(true);
     try {
+      // Calculate actual rest taken (if we were resting before this set)
+      let actualRestTaken: number | undefined;
+      if (restStartTime) {
+        actualRestTaken = Math.floor((Date.now() - restStartTime.getTime()) / 1000);
+        setRestStartTime(null); // Reset for next rest period
+      }
+
       if (sessionExerciseId) {
         const result = await logSet({
           sessionExerciseId,
@@ -36,6 +45,7 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
           actualReps: reps,
           weight: 0,
           painLevel: painLevel,
+          restTaken: actualRestTaken, // Pass actual rest duration to be stored
           aggravatedBlockerId: selectedBlockerId || undefined,
         });
 
@@ -56,7 +66,9 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
         const restTime = exercise.restSeconds !== undefined ? exercise.restSeconds : 60;
         
         if (restTime > 0) {
+          setRestTimerMax(restTime);
           setRestTimer(restTime);
+          setRestStartTime(new Date()); // Track when rest period started
           const timer = setInterval(() => {
             setRestTimer(prev => {
               if (prev === null || prev <= 1) {
@@ -82,55 +94,141 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
     onComplete(currentSet);
   };
 
+  // Skip rest timer (but still track actual time taken)
+  const handleSkipRest = () => {
+    setRestTimer(null);
+    // Note: restStartTime stays set so we capture actual rest when next set is logged
+  };
+
   const showHighPainWarning = painLevel > 3;
+  const restProgress = restTimerMax > 0 && restTimer !== null ? ((restTimerMax - restTimer) / restTimerMax) * 100 : 0;
 
   return (
-    <div className="w-full space-y-4">
-      {/* Exercise Name */}
-      <div className="text-center mb-2">
+    <div className="w-full space-y-5">
+      {/* Exercise Name & Set Progress */}
+      <div className="text-center">
         <h2 className="text-2xl font-bold font-heading text-zinc-900 uppercase tracking-tight">
           {exercise.name}
         </h2>
-        <p className="text-zinc-400 text-sm mt-1">
-          Set {currentSet} of {totalSets} × {exercise.defaultReps} reps
-        </p>
-      </div>
-
-      {/* Rep Counter - Clean White Card */}
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-zinc-100">
-        <p className="text-center text-zinc-400 text-xs uppercase tracking-widest font-medium mb-4">
-          Reps
-        </p>
-        <div className="flex items-center justify-center gap-6">
-          <motion.button
-            onClick={() => setReps(Math.max(1, reps - 1))}
-            whileTap={{ scale: 0.95 }}
-            className="h-12 w-12 rounded-full bg-red-500 text-white flex items-center justify-center"
-          >
-            <Minus size={20} strokeWidth={3} />
-          </motion.button>
-
-          <div className="text-6xl font-bold font-heading text-zinc-900 min-w-[80px] text-center tabular-nums">
-            {reps}
-          </div>
-
-          <motion.button
-            onClick={() => setReps(reps + 1)}
-            whileTap={{ scale: 0.95 }}
-            className="h-12 w-12 rounded-full bg-green-500 text-white flex items-center justify-center"
-          >
-            <Plus size={20} strokeWidth={3} />
-          </motion.button>
+        
+        {/* Premium Set Progress Indicator */}
+        <div className="mt-4 flex items-center justify-center gap-3">
+          {Array.from({ length: totalSets }, (_, i) => {
+            const setNum = i + 1;
+            const isCompleted = setNum < currentSet;
+            const isCurrent = setNum === currentSet;
+            
+            return (
+              <motion.div
+                key={i}
+                initial={{ scale: 0.8 }}
+                animate={{ scale: 1 }}
+                className="flex flex-col items-center gap-1"
+              >
+                <motion.div
+                  animate={{
+                    scale: isCurrent ? 1.15 : 1,
+                    backgroundColor: isCompleted 
+                      ? '#22c55e' 
+                      : isCurrent 
+                        ? '#f97316' 
+                        : '#e5e7eb',
+                  }}
+                  transition={{ type: 'spring', stiffness: 300 }}
+                  className={`
+                    h-10 w-10 rounded-full flex items-center justify-center font-bold text-sm
+                    ${isCompleted ? 'text-white' : isCurrent ? 'text-white ring-4 ring-orange-200' : 'text-zinc-400'}
+                  `}
+                >
+                  {isCompleted ? (
+                    <Check size={18} strokeWidth={3} />
+                  ) : (
+                    <span className="font-heading">{setNum}</span>
+                  )}
+                </motion.div>
+                <span className={`text-[10px] font-medium uppercase tracking-wide ${
+                  isCurrent ? 'text-orange-600' : isCompleted ? 'text-green-600' : 'text-zinc-400'
+                }`}>
+                  {isCompleted ? 'Done' : isCurrent ? 'Now' : `Set ${setNum}`}
+                </span>
+              </motion.div>
+            );
+          })}
+        </div>
+        
+        {/* Target Reps Badge */}
+        <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-zinc-100 rounded-full">
+          <span className="text-xs font-medium text-zinc-500">Target:</span>
+          <span className="text-xs font-bold text-zinc-700">{exercise.defaultReps} reps</span>
         </div>
       </div>
 
-      {/* Pain Level - Subtle White Card */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-100">
-        <div className="flex items-center gap-2 mb-4">
-          <AlertTriangle size={14} className="text-amber-500" />
-          <p className="text-xs font-bold text-zinc-700 uppercase tracking-wide">
-            Pain Level?
-          </p>
+      {/* Rep Counter - Premium Card */}
+      <div className="bg-white rounded-3xl p-6 shadow-lg shadow-zinc-900/5 border border-zinc-100/80">
+        <p className="text-center text-zinc-400 text-xs uppercase tracking-widest font-medium mb-4">
+          Actual Reps
+        </p>
+        <div className="flex items-center justify-center gap-8">
+          <motion.button
+            onClick={() => setReps(Math.max(1, reps - 1))}
+            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.05 }}
+            className="h-14 w-14 rounded-full bg-gradient-to-br from-red-400 to-red-600 text-white flex items-center justify-center shadow-lg shadow-red-500/30"
+          >
+            <Minus size={22} strokeWidth={3} />
+          </motion.button>
+
+          <motion.div 
+            key={reps}
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="text-7xl font-bold font-heading text-zinc-900 min-w-[100px] text-center tabular-nums"
+          >
+            {reps}
+          </motion.div>
+
+          <motion.button
+            onClick={() => setReps(reps + 1)}
+            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.05 }}
+            className="h-14 w-14 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center shadow-lg shadow-green-500/30"
+          >
+            <Plus size={22} strokeWidth={3} />
+          </motion.button>
+        </div>
+        
+        {/* Quick adjust buttons */}
+        <div className="flex justify-center gap-2 mt-4">
+          {[-5, -2, +2, +5].map(delta => (
+            <button
+              key={delta}
+              onClick={() => setReps(Math.max(1, reps + delta))}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                delta < 0 
+                  ? 'bg-red-50 text-red-600 hover:bg-red-100' 
+                  : 'bg-green-50 text-green-600 hover:bg-green-100'
+              }`}
+            >
+              {delta > 0 ? '+' : ''}{delta}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Pain Level - Collapsible Subtle Card */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={14} className="text-amber-500" />
+            <p className="text-xs font-bold text-zinc-700 uppercase tracking-wide">
+              Pain Level
+            </p>
+          </div>
+          <span className={`text-lg font-bold ${
+            painLevel === 0 ? 'text-green-600' : painLevel <= 3 ? 'text-amber-500' : 'text-red-500'
+          }`}>
+            {painLevel}/10
+          </span>
         </div>
         
         <input
@@ -139,14 +237,17 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
           max="10"
           value={painLevel}
           onChange={(e) => setPainLevel(parseInt(e.target.value))}
-          className="w-full h-1.5 bg-zinc-200 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-500"
+          className={`w-full h-2 mt-3 rounded-full appearance-none cursor-pointer transition-all
+            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 
+            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-md
+            ${painLevel === 0 
+              ? 'bg-gradient-to-r from-green-200 to-green-300 [&::-webkit-slider-thumb]:bg-green-500' 
+              : painLevel <= 3 
+                ? 'bg-gradient-to-r from-green-200 via-amber-200 to-amber-300 [&::-webkit-slider-thumb]:bg-amber-500'
+                : 'bg-gradient-to-r from-amber-200 via-orange-300 to-red-400 [&::-webkit-slider-thumb]:bg-red-500'
+            }
+          `}
         />
-        
-        <div className="flex justify-between items-center mt-2">
-          <span className="text-[10px] text-zinc-400 font-medium">0 (No pain)</span>
-          <span className="text-lg font-bold text-zinc-800">{painLevel}</span>
-          <span className="text-[10px] text-zinc-400 font-medium">10 (Severe)</span>
-        </div>
 
         {/* High Pain Warning - Inline */}
         <AnimatePresence>
@@ -157,16 +258,13 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
               exit={{ opacity: 0, height: 0 }}
               className="mt-4 space-y-3"
             >
-              <div className="p-3 bg-red-50 rounded-xl">
+              <div className="p-3 bg-red-50 rounded-xl border border-red-100">
                 <p className="text-xs text-red-600 font-medium">
                   ⚠️ High pain detected. Exercise may be swapped to safer alternative.
                 </p>
               </div>
               
               <div>
-                <p className="text-xs font-bold text-zinc-600 uppercase tracking-wide mb-2">
-                  Link to Body Issue
-                </p>
                 <BlockerPicker
                   selectedBlockerId={selectedBlockerId}
                   onSelect={setSelectedBlockerId}
@@ -178,33 +276,79 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
       </div>
 
       {/* Action Button */}
-      <motion.button
-        onClick={handleLogSet}
-        disabled={logging || restTimer !== null}
-        whileTap={{ scale: 0.98 }}
-        className={`
-          w-full h-14 rounded-2xl font-bold text-base uppercase tracking-wider 
-          flex items-center justify-center gap-2 transition-all
-          ${restTimer !== null 
-            ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed' 
-            : 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-          }
-        `}
-      >
-        {logging ? (
-          <>
-            <Loader2 className="animate-spin" size={18} />
-            Logging...
-          </>
-        ) : restTimer !== null ? (
-          <>Rest ({restTimer}s)</>
+      <AnimatePresence mode="wait">
+        {restTimer !== null ? (
+          <motion.div
+            key="rest"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-3"
+          >
+            {/* Rest Timer with Progress */}
+            <div className="relative bg-gradient-to-br from-zinc-100 to-zinc-200 rounded-2xl p-6 overflow-hidden">
+              {/* Progress bar background */}
+              <motion.div 
+                initial={{ width: '0%' }}
+                animate={{ width: `${restProgress}%` }}
+                className="absolute inset-0 bg-gradient-to-r from-blue-400/30 to-blue-500/30"
+              />
+              
+              <div className="relative flex items-center justify-center gap-4">
+                <Timer size={24} className="text-blue-600" />
+                <div className="text-center">
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wide">Rest Period</p>
+                  <p className="text-4xl font-bold font-heading text-zinc-800 tabular-nums">{restTimer}s</p>
+                </div>
+              </div>
+            </div>
+            
+            <button
+              onClick={handleSkipRest}
+              className="w-full h-12 rounded-xl bg-zinc-800 text-white font-bold text-sm uppercase tracking-wider hover:bg-zinc-700 transition-colors"
+            >
+              Skip Rest →
+            </button>
+          </motion.div>
         ) : (
-          <>
-            <CheckCircle size={18} />
-            Exercise Complete
-          </>
+          <motion.button
+            key="complete"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            onClick={handleLogSet}
+            disabled={logging}
+            whileTap={{ scale: 0.98 }}
+            className={`
+              w-full h-16 rounded-2xl font-bold text-base uppercase tracking-wider 
+              flex items-center justify-center gap-2 transition-all
+              ${logging 
+                ? 'bg-zinc-300 text-zinc-500 cursor-not-allowed' 
+                : currentSet >= totalSets
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/30'
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30'
+              }
+            `}
+          >
+            {logging ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                Saving...
+              </>
+            ) : currentSet >= totalSets ? (
+              <>
+                <CheckCircle size={20} />
+                Complete Exercise
+              </>
+            ) : (
+              <>
+                <Check size={20} strokeWidth={3} />
+                Log Set {currentSet} →
+              </>
+            )}
+          </motion.button>
         )}
-      </motion.button>
+      </AnimatePresence>
 
       {/* Swap Modal */}
       <AnimatePresence>
@@ -213,20 +357,20 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-6"
             onClick={handleAcceptSwap}
           >
             <motion.div
               initial={{ scale: 0.95, y: 10 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4"
+              className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-amber-100 rounded-full mb-3">
-                  <AlertTriangle size={24} className="text-amber-600" />
+                <div className="inline-flex items-center justify-center w-14 h-14 bg-amber-100 rounded-full mb-3">
+                  <AlertTriangle size={28} className="text-amber-600" />
                 </div>
-                <h3 className="text-lg font-bold text-zinc-900">
+                <h3 className="text-xl font-bold text-zinc-900">
                   Exercise Swap
                 </h3>
                 <p className="text-zinc-500 text-sm mt-1">
@@ -251,7 +395,7 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
 
               <button
                 onClick={handleAcceptSwap}
-                className="w-full h-12 rounded-xl bg-green-500 text-white font-bold uppercase tracking-wider text-sm"
+                className="w-full h-12 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold uppercase tracking-wider text-sm shadow-lg shadow-green-500/30"
               >
                 Got It
               </button>
@@ -262,3 +406,4 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
     </div>
   );
 }
+

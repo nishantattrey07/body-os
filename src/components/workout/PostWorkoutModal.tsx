@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Brain, Clock, Dumbbell, Sparkles, ThumbsUp, Trophy, Zap } from "lucide-react";
+import { Brain, Check, Clock, Dumbbell, Flame, Star, ThumbsUp, Zap } from "lucide-react";
 import { useState } from "react";
 
 interface PostWorkoutModalProps {
@@ -19,13 +19,12 @@ export interface PostWorkoutData {
   notes?: string;
 }
 
-// Format duration as MM:SS or "X min"
 function formatDuration(minutes: number): string {
-  if (minutes < 1) return "< 1 min";
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 1) return "< 1";
+  if (minutes < 60) return `${minutes}`;
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  return `${hours}h ${mins}m`;
+  return `${hours}:${mins.toString().padStart(2, '0')}`;
 }
 
 export function PostWorkoutModal({ 
@@ -50,184 +49,160 @@ export function PostWorkoutModal({
     });
   };
 
-  // Premium segmented rating control
-  const RatingControl = ({ 
+  // Minimal star rating component
+  const StarRating = ({ 
     value, 
     onChange, 
     icon: Icon, 
     label,
-    color
   }: { 
     value: number; 
     onChange: (v: number) => void; 
     icon: React.ElementType; 
     label: string;
-    color: string;
-  }) => {
-    const colorClasses: Record<string, { active: string; inactive: string }> = {
-      emerald: { active: "bg-emerald-500 text-white", inactive: "bg-zinc-100 text-zinc-400" },
-      purple: { active: "bg-purple-500 text-white", inactive: "bg-zinc-100 text-zinc-400" },
-      blue: { active: "bg-blue-500 text-white", inactive: "bg-zinc-100 text-zinc-400" },
-      amber: { active: "bg-amber-500 text-white", inactive: "bg-zinc-100 text-zinc-400" },
-    };
-
-    const colors = colorClasses[color] || colorClasses.emerald;
-
-    return (
-      <div className="bg-white rounded-2xl p-4 border border-zinc-100">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Icon size={18} className="text-zinc-500" />
-            <span className="text-sm font-semibold text-zinc-700">{label}</span>
-          </div>
-          <span className="text-lg font-black text-zinc-900">{value}/5</span>
+  }) => (
+    <div className="flex items-center justify-between py-4 border-b border-zinc-100 last:border-0">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-zinc-100 flex items-center justify-center">
+          <Icon size={16} className="text-zinc-600" />
         </div>
-        <div className="flex gap-1.5">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <motion.button
-              key={n}
-              onClick={() => onChange(n)}
-              whileTap={{ scale: 0.95 }}
-              className={`flex-1 h-10 rounded-xl font-bold text-sm transition-all ${
-                value >= n ? colors.active : colors.inactive
-              }`}
-            >
-              {n}
-            </motion.button>
-          ))}
-        </div>
+        <span className="text-sm font-medium text-zinc-700">{label}</span>
       </div>
-    );
-  };
+      <div className="flex items-center gap-1">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <motion.button
+            key={n}
+            onClick={() => onChange(n)}
+            whileTap={{ scale: 0.85 }}
+            className="p-1"
+          >
+            <Star 
+              size={22} 
+              className={`transition-colors ${
+                value >= n 
+                  ? 'fill-amber-400 text-amber-400' 
+                  : 'fill-transparent text-zinc-200'
+              }`}
+            />
+          </motion.button>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50"
     >
       <motion.div
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        className="bg-zinc-50 rounded-[2rem] w-full max-w-md max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl"
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="bg-white rounded-t-[2rem] sm:rounded-[2rem] w-full max-w-md max-h-[95vh] overflow-y-auto no-scrollbar shadow-2xl"
       >
-        {/* Header - Celebration */}
-        <div className="relative p-8 bg-gradient-to-br from-emerald-500 via-green-500 to-teal-600 text-white text-center rounded-t-[2rem] overflow-hidden">
-          {/* Decorative elements */}
-          <div className="absolute top-4 left-4 opacity-20">
-            <Sparkles size={24} />
-          </div>
-          <div className="absolute top-6 right-6 opacity-20">
-            <Sparkles size={16} />
-          </div>
-          <div className="absolute bottom-4 left-8 opacity-20">
-            <Sparkles size={12} />
-          </div>
-          
+        {/* Success Header */}
+        <div className="relative pt-10 pb-8 text-center bg-gradient-to-b from-emerald-50 to-white">
+          {/* Animated check circle */}
           <motion.div
-            initial={{ scale: 0, rotate: -180 }}
-            animate={{ scale: 1, rotate: 0 }}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="inline-flex items-center justify-center w-20 h-20 bg-white/20 rounded-full mb-4 backdrop-blur-sm"
+            className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full mb-5 shadow-lg shadow-emerald-200"
           >
-            <Trophy size={40} className="text-yellow-300 drop-shadow-lg" />
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              <Check size={40} strokeWidth={3} className="text-white" />
+            </motion.div>
           </motion.div>
           
           <motion.h2 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="text-3xl font-black uppercase tracking-tight font-heading"
+            className="text-2xl font-bold text-zinc-900"
           >
-            Workout Complete!
+            Great Work! 💪
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="text-green-100 text-sm mt-1 font-medium"
+            className="text-zinc-500 text-sm mt-1"
           >
-            {routineName}
+            {routineName} completed
           </motion.p>
         </div>
 
-        {/* Stats Row */}
-        <div className="flex bg-white border-b border-zinc-100">
-          <div className="flex-1 p-5 text-center border-r border-zinc-100">
-            <div className="inline-flex items-center justify-center w-10 h-10 bg-zinc-100 rounded-full mb-2">
-              <Clock size={18} className="text-zinc-500" />
+        {/* Stats Grid */}
+        <div className="px-6 -mt-2">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="grid grid-cols-2 gap-3"
+          >
+            {/* Duration */}
+            <div className="bg-zinc-50 rounded-2xl p-4 text-center">
+              <div className="inline-flex items-center justify-center w-10 h-10 bg-white rounded-xl shadow-sm mb-2">
+                <Clock size={18} className="text-zinc-600" />
+              </div>
+              <p className="text-3xl font-bold text-zinc-900 tracking-tight">
+                {formatDuration(duration)}
+                <span className="text-lg font-medium text-zinc-400 ml-1">min</span>
+              </p>
+              <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium mt-0.5">Duration</p>
             </div>
-            <p className="text-3xl font-black text-zinc-900">{formatDuration(duration)}</p>
-            <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium">Duration</p>
-          </div>
-          <div className="flex-1 p-5 text-center">
-            <div className="inline-flex items-center justify-center w-10 h-10 bg-zinc-100 rounded-full mb-2">
-              <Dumbbell size={18} className="text-zinc-500" />
+            
+            {/* Sets */}
+            <div className="bg-zinc-50 rounded-2xl p-4 text-center">
+              <div className="inline-flex items-center justify-center w-10 h-10 bg-white rounded-xl shadow-sm mb-2">
+                <Flame size={18} className="text-orange-500" />
+              </div>
+              <p className="text-3xl font-bold text-zinc-900 tracking-tight">
+                {setsCompleted}
+                <span className="text-lg font-medium text-zinc-400 ml-1">sets</span>
+              </p>
+              <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium mt-0.5">Completed</p>
             </div>
-            <p className="text-3xl font-black text-zinc-900">{setsCompleted}</p>
-            <p className="text-xs text-zinc-400 uppercase tracking-wider font-medium">Sets</p>
-          </div>
+          </motion.div>
         </div>
 
-        {/* Ratings */}
-        <div className="p-5 space-y-3">
-          <p className="text-xs text-zinc-400 uppercase tracking-wider font-bold mb-2">
-            Rate Your Session
+        {/* Ratings Section */}
+        <div className="px-6 pt-6">
+          <p className="text-xs text-zinc-400 uppercase tracking-wider font-semibold mb-2">
+            How was your session?
           </p>
-
-          <RatingControl
-            value={energy}
-            onChange={setEnergy}
-            icon={Zap}
-            label="Energy After"
-            color="emerald"
-          />
-
-          <RatingControl
-            value={pump}
-            onChange={setPump}
-            icon={Dumbbell}
-            label="Muscle Pump"
-            color="purple"
-          />
-
-          <RatingControl
-            value={focus}
-            onChange={setFocus}
-            icon={Brain}
-            label="Mind-Muscle Focus"
-            color="blue"
-          />
-
-          <RatingControl
-            value={overall}
-            onChange={setOverall}
-            icon={ThumbsUp}
-            label="Overall Rating"
-            color="amber"
-          />
-
-          {/* Notes */}
-          <div className="bg-white rounded-2xl p-4 border border-zinc-100">
-            <label className="text-sm font-semibold text-zinc-700 block mb-2">
-              Notes (optional)
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="How did the workout feel? Any issues?"
-              className="w-full p-3 rounded-xl border border-zinc-200 text-sm resize-none h-20 focus:border-zinc-400 focus:outline-none transition-colors"
-            />
+          
+          <div className="bg-zinc-50 rounded-2xl px-4">
+            <StarRating value={energy} onChange={setEnergy} icon={Zap} label="Energy After" />
+            <StarRating value={pump} onChange={setPump} icon={Dumbbell} label="Muscle Pump" />
+            <StarRating value={focus} onChange={setFocus} icon={Brain} label="Mind-Muscle Focus" />
+            <StarRating value={overall} onChange={setOverall} icon={ThumbsUp} label="Overall" />
           </div>
         </div>
 
-        {/* Submit */}
-        <div className="p-5 pt-2">
+        {/* Notes */}
+        <div className="px-6 pt-5">
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Any notes about this workout? (optional)"
+            className="w-full p-4 rounded-2xl bg-zinc-50 border-0 text-sm resize-none h-20 focus:bg-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-200 transition-all placeholder:text-zinc-300"
+          />
+        </div>
+
+        {/* Submit Button */}
+        <div className="p-6 pt-4">
           <motion.button
             onClick={handleSubmit}
             whileTap={{ scale: 0.98 }}
-            className="w-full h-14 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-lg uppercase tracking-wider shadow-lg transition-colors"
+            className="w-full h-14 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white font-semibold text-base tracking-wide shadow-lg shadow-zinc-900/20 transition-all flex items-center justify-center gap-2"
           >
             Save & Finish
           </motion.button>
