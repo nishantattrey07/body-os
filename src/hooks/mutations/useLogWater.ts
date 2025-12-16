@@ -46,9 +46,7 @@ export function useLogWater() {
             }
         },
 
-        // Refetch to sync with server
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.dailyLog() });
-        },
+        // NOTE: No onSuccess or onSettled - trust optimistic updates.
+        // Data syncs when user returns to tab (refetchOnWindowFocus).
     });
 }

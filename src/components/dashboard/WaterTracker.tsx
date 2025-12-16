@@ -5,7 +5,6 @@ import { useDailyLog } from "@/hooks/queries/useDailyLog";
 import { useUserSettings } from "@/hooks/queries/useUserSettings";
 import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 
 export function WaterTracker() {
@@ -18,26 +17,19 @@ export function WaterTracker() {
   const waterTotal = dailyLog?.waterTotal ?? 0;
   const waterTarget = settings?.waterTarget ?? 4000;
 
-  const [tapping, setTapping] = useState(false);
   
   const PER_TAP = 250; // 250ml per glass
 
-  const handleTap = async () => {
-    if (tapping) return;
-    
-    setTapping(true);
-    try {
-      // Use React Query mutation with optimistic updates
-      await logWaterMutation.mutateAsync(PER_TAP);
-      
-      // SUCCESS: No toast, visual feedback handled by query update + animation
-    } catch (error) {
-      toast.error("Connection Failed", {
-        description: "Could not log water. Please try again.",
-      });
-    } finally {
-      setTimeout(() => setTapping(false), 300);
-    }
+  const handleTap = () => {
+    // Fire-and-forget with optimistic updates
+    // UI updates instantly via onMutate, no blocking needed
+    logWaterMutation.mutate(PER_TAP, {
+      onError: () => {
+        toast.error("Connection Failed", {
+          description: "Could not log water. Please try again.",
+        });
+      },
+    });
   };
 
   const progress = Math.min((waterTotal / waterTarget) * 100, 100);
@@ -81,9 +73,8 @@ export function WaterTracker() {
       {/* Tap Button */}
       <motion.button
         onClick={handleTap}
-        disabled={tapping}
         whileTap={{ scale: 0.95 }}
-        className="w-full bg-white text-blue-600 rounded-2xl py-4 font-bold text-lg flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors disabled:opacity-50 shadow-sm font-heading tracking-wide uppercase"
+        className="w-full bg-white text-blue-600 rounded-2xl py-4 font-bold text-lg flex items-center justify-center gap-2 hover:bg-blue-50 transition-colors shadow-sm font-heading tracking-wide uppercase"
       >
         <Plus className="w-5 h-5" />
         Add {PER_TAP}ml

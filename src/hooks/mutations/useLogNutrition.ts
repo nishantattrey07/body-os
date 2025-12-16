@@ -64,25 +64,15 @@ export function useLogNutrition() {
             }
         },
 
-        // On Success - sync with server's authoritative totals
-        onSuccess: (result) => {
-            if (result.dailyTotals) {
-                const currentLog = queryClient.getQueryData<DailyLog>(queryKeys.dailyLog());
-                if (currentLog) {
-                    queryClient.setQueryData<DailyLog>(queryKeys.dailyLog(), {
-                        ...currentLog,
-                        proteinTotal: result.dailyTotals.proteinTotal,
-                        carbsTotal: result.dailyTotals.carbsTotal,
-                        fatsTotal: result.dailyTotals.fatsTotal,
-                        caloriesTotal: result.dailyTotals.caloriesTotal,
-                    });
-                }
-            }
-        },
-
-        // Always refetch to ensure sync (handles race conditions)
-        onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.dailyLog() });
-        },
+        // NOTE: We deliberately DO NOT have onSuccess or onSettled here.
+        // 
+        // Why? During rapid clicks:
+        // - Click 1: optimistic +18g, server returns 283g
+        // - Click 2: optimistic +18g (now 301g), server call in-flight
+        // - If onSettled invalidates, it refetches and gets 283g (stale!)
+        // - If onSuccess sets server value, it sets 283g (from Click 1, stale!)
+        //
+        // Solution: Trust the optimistic updates. The cache is eventually
+        // consistent when refetchOnWindowFocus triggers on tab switch.
     });
 }
