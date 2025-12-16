@@ -46,11 +46,14 @@ export function DashboardClient() {
     await refetchLog();
   };
 
-  // Loading state
+  // Loading state - with premium gradient
   if (logLoading || settingsLoading || needsCheckIn === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="animate-spin text-zinc-300 w-10 h-10" />
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50/50 to-white">
+        <div className="relative">
+          <div className="absolute inset-0 blur-xl bg-gradient-to-r from-orange-200 to-amber-200 opacity-50 animate-pulse" />
+          <Loader2 className="animate-spin text-orange-400 w-12 h-12 relative z-10" />
+        </div>
       </div>
     );
   }
@@ -60,15 +63,14 @@ export function DashboardClient() {
   const waterProgress = dailyLog ? (dailyLog.waterTotal / (settings?.waterTarget ?? 4000)) * 100 : 0;
   
   // Calculate expected progress based on time of day
-  // Assume eating window is 6 AM - 10 PM (16 hours)
   const now = new Date();
   const currentHour = now.getHours();
   const minutesPastHour = now.getMinutes();
   
   // Calculate hours elapsed since 6 AM
   const startHour = 6;
-  const endHour = 22; // 10 PM
-  const totalActiveHours = endHour - startHour; // 16 hours
+  const endHour = 22;
+  const totalActiveHours = endHour - startHour;
   
   let hoursElapsed = 0;
   if (currentHour >= startHour && currentHour < endHour) {
@@ -77,10 +79,7 @@ export function DashboardClient() {
     hoursElapsed = totalActiveHours;
   }
   
-  // Expected progress = (hours elapsed / total hours) * 100
   const expectedProgress = (hoursElapsed / totalActiveHours) * 100;
-  
-  // Define thresholds
   const minAcceptableProgress = Math.max(0, expectedProgress - 20);
   const beastModeThreshold = expectedProgress + 20;
   
@@ -91,12 +90,10 @@ export function DashboardClient() {
     const proteinAhead = proteinProgress > beastModeThreshold;
     const waterAhead = waterProgress > beastModeThreshold;
     
-    // Determine time of day for messaging
     const isMorning = currentHour >= 6 && currentHour < 12;
     const isAfternoon = currentHour >= 12 && currentHour < 18;
     const isEvening = currentHour >= 18 && currentHour < 22;
     
-    // Priority 1: Both behind (Critical)
     if (proteinBehind && waterBehind) {
       let label = "Fuel Up";
       if (isAfternoon) label = "Catch Up";
@@ -104,7 +101,6 @@ export function DashboardClient() {
       return { status: "critical" as const, label };
     }
     
-    // Priority 2: Protein behind (Fuel Up)
     if (proteinBehind) {
       let label = "Eat Now";
       if (isAfternoon) label = "Eat Food";
@@ -112,7 +108,6 @@ export function DashboardClient() {
       return { status: "fuel" as const, label };
     }
     
-    // Priority 3: Water behind (Hydrate)
     if (waterBehind) {
       let label = "Hydrate";
       if (isAfternoon) label = "Drink Water";
@@ -120,12 +115,10 @@ export function DashboardClient() {
       return { status: "hydrate" as const, label };
     }
     
-    // Priority 4: Ahead of schedule (Beast Mode)
     if (proteinAhead || waterAhead) {
       return { status: "beast-mode" as const, label: "Beast Mode" };
     }
     
-    // Default: On Track
     return { status: "on-track" as const, label: "On Track" };
   };
   
@@ -133,7 +126,11 @@ export function DashboardClient() {
   const systemMode = (dailyLog?.sleepHours || 0) < 6 ? "saver" : "optimized";
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-6 bg-background text-foreground sm:p-12 max-w-md mx-auto relative overflow-hidden">
+    <div className="flex min-h-screen flex-col items-center justify-center p-6 sm:p-12 max-w-md mx-auto relative overflow-hidden bg-gradient-to-br from-orange-50 via-amber-50/30 to-white">
+      
+      {/* Decorative Background Elements */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-orange-200/40 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
+      <div className="absolute bottom-0 left-0 w-72 h-72 bg-gradient-to-tr from-amber-200/30 to-transparent rounded-full blur-3xl translate-y-1/2 -translate-x-1/3" />
       
       <AnimatePresence mode="wait">
         {needsCheckIn ? (
@@ -148,38 +145,45 @@ export function DashboardClient() {
             key="dashboard"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="flex-1 flex flex-col items-center w-full h-full"
+            className="flex-1 flex flex-col items-center w-full h-full relative z-10"
           >
-            {/* Settings Button - Absolute Position */}
-            <button
+            {/* Settings Button - Premium Glassmorphism - Fixed Top Right */}
+            <motion.button
               onClick={() => navigateTo('/settings')}
-              className="absolute top-8 right-6 p-2 rounded-full bg-zinc-100/80 hover:bg-zinc-200 transition-colors z-20"
+              whileHover={{ scale: 1.05, rotate: 15 }}
+              whileTap={{ scale: 0.95 }}
+              className="absolute top-4 right-0 p-3 rounded-2xl bg-white/60 backdrop-blur-md hover:bg-white/80 transition-all z-20 shadow-lg shadow-orange-100/50 border border-white/50"
             >
               <Settings size={20} className="text-zinc-600" />
-            </button>
+            </motion.button>
 
-            {/* Header */}
-            <div className="w-full flex flex-col z-10 mb-8 mt-4">
-              <div className="flex justify-between items-center w-full min-h-[44px]">
-                <h1 className="text-4xl font-bold uppercase tracking-tighter text-foreground font-heading whitespace-nowrap">
-                  Body OS
-                </h1>
-                
-                <div className="mr-12">
-                  <StatusIndicator 
-                    status={smartStatus.status} 
-                    label={smartStatus.label}
-                  />
+            {/* Header - Enhanced Typography */}
+            <div className="w-full flex flex-col z-10 mb-6 mt-4">
+              {/* Title Row */}
+              <div className="flex items-center justify-between w-full pr-14">
+                <div>
+                  <h1 className="text-5xl font-bold uppercase tracking-tighter text-zinc-900 font-heading whitespace-nowrap">
+                    Body OS
+                  </h1>
+                  <div className="h-1 w-16 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full mt-1" />
                 </div>
               </div>
-              <button 
-                onClick={() => {
-                  setNeedsCheckIn(true);
-                }}
-                className="text-xs text-zinc-400 font-medium tracking-wide uppercase hover:text-primary transition-colors text-left mt-1"
-              >
-                Recalibrate
-              </button>
+              
+              {/* Status Row - Separate from title */}
+              <div className="flex items-center justify-between mt-4">
+                <motion.button 
+                  onClick={() => setNeedsCheckIn(true)}
+                  whileHover={{ x: 5 }}
+                  className="text-xs text-orange-500/70 font-semibold tracking-widest uppercase hover:text-orange-600 transition-colors flex items-center gap-1"
+                >
+                  ↻ Recalibrate
+                </motion.button>
+                
+                <StatusIndicator 
+                  status={smartStatus.status} 
+                  label={smartStatus.label}
+                />
+              </div>
             </div>
 
             {/* Core Vitals */}
@@ -205,54 +209,73 @@ export function DashboardClient() {
                 }}
               />
               
-              {/* Quick Stats Grid */}
-              <div className="grid grid-cols-2 gap-4 mt-8 w-full px-6">
-                <div className={`rounded-3xl p-6 flex flex-col items-start shadow-sm border ${systemMode === 'saver' ? 'bg-red-50 border-red-100' : 'bg-white border-zinc-50'}`}>
-                  <span className={`${systemMode === 'saver' ? 'text-red-600' : 'text-zinc-400'} font-medium text-sm uppercase tracking-wider mb-1`}>Weight</span>
-                  <span className={`text-4xl font-bold font-heading ${systemMode === 'saver' ? 'text-red-600' : 'text-foreground'}`}>
-                    {dailyLog?.weight || 0}<span className="text-lg text-zinc-400/70">kg</span>
+              {/* Quick Stats Grid - Premium Glassmorphism */}
+              <div className="grid grid-cols-2 gap-4 mt-8 w-full px-4">
+                <motion.div 
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  className={`rounded-3xl p-6 flex flex-col items-start backdrop-blur-md border transition-all ${
+                    systemMode === 'saver' 
+                      ? 'bg-red-50/80 border-red-200/50 shadow-lg shadow-red-100/30' 
+                      : 'bg-white/70 border-white/50 shadow-lg shadow-orange-100/30'
+                  }`}
+                >
+                  <span className={`${systemMode === 'saver' ? 'text-red-500' : 'text-orange-500/70'} font-bold text-xs uppercase tracking-widest mb-2`}>Weight</span>
+                  <span className={`text-4xl font-bold font-heading ${systemMode === 'saver' ? 'text-red-600' : 'text-zinc-900'}`}>
+                    {dailyLog?.weight || 0}<span className="text-lg text-zinc-400/60 ml-1">kg</span>
                   </span>
-                </div>
-                <div className={`rounded-3xl p-6 flex flex-col items-start shadow-sm border ${systemMode === 'saver' ? 'bg-red-50 border-red-100' : 'bg-white border-zinc-50'}`}>
-                  <span className={`${systemMode === 'saver' ? 'text-red-600' : 'text-zinc-400'} font-medium text-sm uppercase tracking-wider mb-1`}>Sleep</span>
-                  <span className={`text-4xl font-bold font-heading ${systemMode === 'saver' ? 'text-red-600' : 'text-foreground'}`}>
-                    {dailyLog?.sleepHours || 0}<span className="text-lg text-zinc-400/70">h</span>
+                </motion.div>
+                <motion.div 
+                  whileHover={{ scale: 1.02, y: -2 }}
+                  className={`rounded-3xl p-6 flex flex-col items-start backdrop-blur-md border transition-all ${
+                    systemMode === 'saver' 
+                      ? 'bg-red-50/80 border-red-200/50 shadow-lg shadow-red-100/30' 
+                      : 'bg-white/70 border-white/50 shadow-lg shadow-orange-100/30'
+                  }`}
+                >
+                  <span className={`${systemMode === 'saver' ? 'text-red-500' : 'text-orange-500/70'} font-bold text-xs uppercase tracking-widest mb-2`}>Sleep</span>
+                  <span className={`text-4xl font-bold font-heading ${systemMode === 'saver' ? 'text-red-600' : 'text-zinc-900'}`}>
+                    {dailyLog?.sleepHours || 0}<span className="text-lg text-zinc-400/60 ml-1">h</span>
                   </span>
-                </div>
+                </motion.div>
               </div>
 
               {systemMode === "saver" && (
-                <div className="mt-4 w-full rounded-2xl bg-red-50 p-4 border border-red-100 flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
-                  <p className="text-red-600 font-bold text-sm uppercase tracking-wide">Volume Reduced - Recovery Priority</p>
-                </div>
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 w-full mx-4 rounded-2xl bg-gradient-to-r from-red-500 to-red-600 p-4 flex items-center gap-3 shadow-lg shadow-red-200/50"
+                >
+                  <div className="h-3 w-3 rounded-full bg-white animate-pulse" />
+                  <p className="text-white font-bold text-sm uppercase tracking-wide">Recovery Mode Active</p>
+                </motion.div>
               )}
 
               {/* Water Tracker */}
-              {/* Water Tracker */}
-              <div className="w-full px-6 mt-6">
+              <div className="w-full px-4 mt-6">
                 <WaterTracker />
               </div>
             </div>
 
-            {/* Action Grid */}
-            <div className="w-full z-10 mt-8 mb-8 grid grid-cols-2 gap-4">
+            {/* Action Grid - Enhanced */}
+            <div className="w-full z-10 mt-8 mb-8 grid grid-cols-2 gap-4 px-4">
               <ActionCard
                 label="Log Food"
                 sublabel="Track Nutrition"
                 icon={Utensils}
                 color="text-orange-500"
+                bgColor="bg-gradient-to-br from-white/80 to-orange-50/50"
                 onClick={() => navigateTo("/nutrition")}
-                className="h-40"
+                className="h-40 backdrop-blur-sm border-orange-100/50"
               />
               
               <ActionCard
                 label="Workout"
                 sublabel="Start Session"
                 icon={Dumbbell}
-                color="text-zinc-900"
+                color="text-zinc-800"
+                bgColor="bg-gradient-to-br from-white/80 to-zinc-50/50"
                 onClick={() => navigateTo("/workout")}
-                className="h-40"
+                className="h-40 backdrop-blur-sm border-zinc-100/50"
               />
 
               <ActionCard
@@ -261,9 +284,9 @@ export function DashboardClient() {
                 icon={TrendingUp}
                 color="text-blue-500"
                 onClick={() => navigateTo("/progress")}
-                className="col-span-2 h-24"
+                className="col-span-2 h-24 backdrop-blur-sm"
                 variant="wide"
-                bgColor="bg-blue-50/50"
+                bgColor="bg-gradient-to-r from-blue-50/70 to-cyan-50/50"
               />
             </div>
           </motion.div>

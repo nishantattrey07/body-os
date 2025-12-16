@@ -290,7 +290,10 @@ export default function WorkoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50/30 to-white pb-20 relative overflow-hidden">
+      {/* Decorative Background Elements */}
+      <div className="fixed top-0 right-0 w-96 h-96 bg-gradient-to-bl from-orange-200/30 to-transparent rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+      <div className="fixed bottom-0 left-0 w-72 h-72 bg-gradient-to-tr from-amber-200/20 to-transparent rounded-full blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none" />
        {/* Exit Confirmation Modal */}
        <AnimatePresence>
         {showExitModal && (
@@ -343,7 +346,7 @@ export default function WorkoutPage() {
       </AnimatePresence>
 
       {/* Fixed Header */}
-      <div className="fixed top-0 left-0 right-0 z-30 bg-background border-b border-zinc-100 px-6 py-4 flex items-center gap-4">
+      <div className="fixed top-0 left-0 right-0 z-30 bg-gradient-to-r from-orange-50/90 to-white/90 backdrop-blur-md border-b border-orange-100/50 px-6 py-4 flex items-center gap-4">
         <button 
           onClick={() => {
             if (stage === 'select' || stage === 'loading') {
@@ -356,7 +359,7 @@ export default function WorkoutPage() {
               setShowExitModal(true);
             }
           }}
-          className="p-2 rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors"
+          className="p-2.5 rounded-2xl bg-white/70 backdrop-blur-sm hover:bg-white/90 transition-all shadow-sm border border-white/50"
         >
           <ArrowLeft className="text-zinc-600" />
         </button>
@@ -373,10 +376,10 @@ export default function WorkoutPage() {
       {(stage === 'select' || stage === 'loading') && (
         <>
           {/* Fixed Search + Filters */}
-          <div className="fixed top-[72px] left-0 right-0 z-20 bg-background">
+          <div className="fixed top-[72px] left-0 right-0 z-20 bg-gradient-to-b from-orange-50/95 to-orange-50/80 backdrop-blur-sm">
             {/* Floating Search Bar */}
             <div className="px-6 pt-2 pb-2">
-              <div className="bg-white rounded-2xl shadow-lg border border-zinc-100 p-4 mx-2 flex items-center gap-3">
+              <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-orange-100/30 border border-white/60 p-4 mx-2 flex items-center gap-3">
                 <Search size={22} className="text-zinc-400 flex-shrink-0" />
                 <input
                   type="text"
@@ -436,8 +439,8 @@ export default function WorkoutPage() {
               </button>
             </div>
 
-            {/* Subtle gray gradient - only visible when scrolled */}
-            <div className={`absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-zinc-200/50 to-transparent pointer-events-none transform translate-y-full transition-opacity duration-300 ${isScrolled ? 'opacity-100' : 'opacity-0'}`} />
+            {/* Orange gradient - only visible when scrolled */}
+            <div className={`absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-orange-200/40 to-transparent pointer-events-none transform translate-y-full transition-opacity duration-300 ${isScrolled ? 'opacity-100' : 'opacity-0'}`} />
           </div>
 
           {/* Spacer for fixed elements */}
@@ -486,10 +489,12 @@ export default function WorkoutPage() {
               ) : (
                 <>
                   {routines.map((routine) => (
-                    <button
+                    <motion.button
                       key={routine.id}
                       onClick={() => handleSelectRoutine(routine)}
-                      className="w-full p-6 rounded-3xl bg-white border border-zinc-100 hover:shadow-lg transition-all text-left"
+                      whileHover={{ scale: 1.02, y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full p-6 rounded-3xl bg-white/70 backdrop-blur-sm border border-white/60 hover:shadow-lg shadow-md shadow-orange-100/20 transition-all text-left"
                     >
                       <div className="flex items-center gap-4">
                         <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
@@ -514,7 +519,7 @@ export default function WorkoutPage() {
                           </p>
                         </div>
                       </div>
-                    </button>
+                    </motion.button>
                   ))}
                   {hasMore && (
                     <div ref={loadMoreRef} className="py-8 text-center">

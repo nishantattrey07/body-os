@@ -1,8 +1,8 @@
 "use client";
 
 import { getTodayWarmupProgress, getWarmupChecklist, isWarmupComplete, toggleWarmupItem } from "@/app/actions/workout";
-import { AnimatePresence, motion } from "framer-motion";
-import { Check, Loader2, Lock, Unlock } from "lucide-react";
+import { motion } from "framer-motion";
+import { Check, Loader2, Unlock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -29,7 +29,6 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
 
       setWarmups(allWarmups);
       
-      // Mark completed warmups
       const completedIds = new Set(
         todayProgress
           .filter((log: any) => log.completed)
@@ -47,7 +46,7 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
     const isCurrentlyCompleted = completed.has(warmupId);
     const newState = !isCurrentlyCompleted;
     
-    // OPTIMISTIC UPDATE: Update UI immediately for instant feedback
+    // Optimistic update
     setCompleted(prev => {
       const newSet = new Set(prev);
       if (newState) {
@@ -58,19 +57,18 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
       return newSet;
     });
     
-    // Update backend in background
     try {
       await toggleWarmupItem(warmupId, newState);
     } catch (error) {
       console.error("Failed to toggle warmup item:", error);
       
-      // ROLLBACK: Revert optimistic update on error
+      // Rollback on error
       setCompleted(prev => {
         const newSet = new Set(prev);
         if (newState) {
-          newSet.delete(warmupId); // Was added optimistically, remove it
+          newSet.delete(warmupId);
         } else {
-          newSet.add(warmupId); // Was removed optimistically, add it back
+          newSet.add(warmupId);
         }
         return newSet;
       });
@@ -84,7 +82,7 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
     try {
       const isComplete = await isWarmupComplete();
       if (isComplete) {
-        setTimeout(() => onUnlock(), 500); // Small delay for animation
+        setTimeout(() => onUnlock(), 500);
       } else {
         toast.warning("Complete all warmup items first!");
       }
@@ -98,7 +96,7 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="animate-spin text-zinc-400 w-8 h-8" />
+        <Loader2 className="animate-spin text-emerald-500 w-8 h-8" />
       </div>
     );
   }
@@ -106,33 +104,23 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
   const allChecked = warmups.every(w => completed.has(w.id));
 
   return (
-    <div className="w-full space-y-8">
+    <div className="w-full space-y-6">
       {/* Header */}
-      <div className="text-center space-y-2">
+      <div className="text-center space-y-3">
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border-2 ${
-            allChecked 
-              ? 'bg-green-500/10 border-green-500' 
-              : 'bg-red-500/10 border-red-500'
-          }`}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500 text-white shadow-md"
         >
-          {allChecked ? (
-            <Unlock size={18} className="text-green-500" />
-          ) : (
-            <Lock size={18} className="text-red-500" />
-          )}
-          <span className={`text-sm font-bold uppercase tracking-wider ${
-            allChecked ? 'text-green-500' : 'text-red-500'
-          }`}>
-            {allChecked ? 'Ready to Train' : 'Warmup Required'}
+          <Unlock size={16} />
+          <span className="text-sm font-bold uppercase tracking-wider">
+            Ready to Train
           </span>
         </motion.div>
         
-        <h1 className="text-4xl font-bold uppercase tracking-tighter text-foreground font-heading">
+        <h1 className="text-4xl font-bold uppercase tracking-tighter text-zinc-900 font-heading leading-tight">
           Pre-Flight<br />
-          <span className="text-red-600">Checks</span>
+          <span className="text-emerald-500">Checks</span>
         </h1>
         <p className="text-zinc-400 text-sm">
           Complete all items to unlock exercises
@@ -145,67 +133,74 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
           <motion.button
             key={warmup.id}
             onClick={() => handleToggle(warmup.id)}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.08 }}
             whileTap={{ scale: 0.98 }}
             className={`
               w-full p-4 rounded-2xl flex items-center justify-between 
-              border-2 transition-all duration-200
+              border-l-4 transition-all duration-200 shadow-sm
               ${completed.has(warmup.id) 
-                ? 'bg-green-500/10 border-green-500' 
-                : 'bg-white border-zinc-200 hover:border-zinc-300'
+                ? 'bg-emerald-50 border-l-emerald-500' 
+                : 'bg-emerald-50/50 border-l-emerald-300 hover:bg-emerald-50'
               }
             `}
           >
-            <div className="text-left flex-1">
+            <div className="text-left flex-1 pr-4">
               <span className={`
-                text-lg font-bold font-heading
-                ${completed.has(warmup.id) ? 'text-green-700 line-through' : 'text-zinc-900'}
+                text-base font-bold font-heading
+                ${completed.has(warmup.id) ? 'text-emerald-600' : 'text-emerald-600'}
               `}>
                 {warmup.name}
               </span>
               {warmup.description && (
-                <p className="text-xs text-zinc-500 mt-1">{warmup.description}</p>
+                <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                  {warmup.description}
+                </p>
               )}
             </div>
             
             <div className={`
-              h-8 w-8 rounded-full flex items-center justify-center transition-colors
-              ${completed.has(warmup.id) ? 'bg-green-500' : 'bg-zinc-200'}
+              h-8 w-8 rounded-full flex items-center justify-center transition-all flex-shrink-0
+              ${completed.has(warmup.id) 
+                ? 'bg-emerald-500 shadow-md' 
+                : 'bg-white border-2 border-emerald-300'
+              }
             `}>
-              {completed.has(warmup.id) && <Check size={18} className="text-white" />}
+              {completed.has(warmup.id) && <Check size={16} className="text-white" strokeWidth={3} />}
             </div>
           </motion.button>
         ))}
       </div>
 
-      {/* Unlock Button */}
-      <AnimatePresence>
-        {allChecked && (
-          <motion.button
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            onClick={handleUnlock}
-            disabled={unlocking}
-            whileTap={{ scale: 0.98 }}
-            className="w-full h-16 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-xl uppercase tracking-wider shadow-lg shadow-red-500/20 flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {unlocking ? (
-              <>
-                <Loader2 className="animate-spin" size={20} />
-                Unlocking...
-              </>
-            ) : (
-              <>
-                <Unlock size={20} />
-                Start Workout
-              </>
-            )}
-          </motion.button>
+      {/* Start Button - Always visible, changes state */}
+      <motion.button
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        onClick={handleUnlock}
+        disabled={unlocking || !allChecked}
+        whileTap={{ scale: allChecked ? 0.98 : 1 }}
+        className={`
+          w-full h-14 rounded-2xl font-bold text-lg uppercase tracking-wider 
+          flex items-center justify-center gap-2 transition-all
+          ${allChecked 
+            ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/25' 
+            : 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
+          }
+        `}
+      >
+        {unlocking ? (
+          <>
+            <Loader2 className="animate-spin" size={18} />
+            Unlocking...
+          </>
+        ) : (
+          <>
+            <Unlock size={18} />
+            Start Workout
+          </>
         )}
-      </AnimatePresence>
+      </motion.button>
     </div>
   );
 }

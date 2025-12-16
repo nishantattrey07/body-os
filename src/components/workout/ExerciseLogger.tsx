@@ -3,13 +3,13 @@
 import { completeExercise, logSet } from "@/app/actions/workout-session";
 import { BlockerPicker } from "@/components/blockers/BlockerPicker";
 import { AnimatePresence, motion } from "framer-motion";
-import { AlertTriangle, CheckCircle, Minus, Plus } from "lucide-react";
+import { AlertTriangle, CheckCircle, Loader2, Minus, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 interface ExerciseLoggerProps {
   exercise: any;
-  sessionExerciseId?: string; // From WorkoutSession
+  sessionExerciseId?: string;
   onComplete: (setsCount: number) => void;
 }
 
@@ -22,63 +22,52 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
   const [swapSuggestion, setSwapSuggestion] = useState<any>(null);
   const [currentSet, setCurrentSet] = useState(1);
   const totalSets = exercise.defaultSets || 3;
-  
-  // Always show pain slider so it's available for single-set exercises too
-  const showPainSlider = true;
 
   const handleLogSet = async () => {
     if (logging) return;
     
     setLogging(true);
     try {
-      // Only log to database if we have a session exercise ID
       if (sessionExerciseId) {
         const result = await logSet({
           sessionExerciseId,
           setNumber: currentSet,
           targetReps: exercise.defaultReps || 10,
           actualReps: reps,
-          weight: 0, // bodyweight
-          painLevel: showPainSlider ? painLevel : undefined,
+          weight: 0,
+          painLevel: painLevel,
           aggravatedBlockerId: selectedBlockerId || undefined,
         });
 
-        // Check for pain-based swap
         if (result.swapSuggestion) {
           setSwapSuggestion(result.swapSuggestion);
           return;
         }
       }
 
-      // Check if this was the last set
       if (currentSet >= totalSets) {
-        // Mark exercise as complete if we have session
         if (sessionExerciseId) {
           await completeExercise(sessionExerciseId);
         }
-        // Exercise complete - move to next, passing the number of sets completed
         setTimeout(() => onComplete(totalSets), 500);
       } else {
-        // More sets to go - start rest timer
         setCurrentSet(prev => prev + 1);
         
-        // Use configured rest time (default to 60s if missing)
         const restTime = exercise.restSeconds !== undefined ? exercise.restSeconds : 60;
         
         if (restTime > 0) {
-            setRestTimer(restTime);
-            const timer = setInterval(() => {
-              setRestTimer(prev => {
-                if (prev === null || prev <= 1) {
-                  clearInterval(timer);
-                  return null;
-                }
-                return prev - 1;
-              });
-            }, 1000);
+          setRestTimer(restTime);
+          const timer = setInterval(() => {
+            setRestTimer(prev => {
+              if (prev === null || prev <= 1) {
+                clearInterval(timer);
+                return null;
+              }
+              return prev - 1;
+            });
+          }, 1000);
         } else {
-            // No rest - ensure timer is null so user can proceed immediately
-            setRestTimer(null);
+          setRestTimer(null);
         }
       }
     } catch (error: any) {
@@ -90,15 +79,16 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
   };
 
   const handleAcceptSwap = () => {
-    // User acknowledges the swap - move to next exercise, count sets completed so far
     onComplete(currentSet);
   };
 
+  const showHighPainWarning = painLevel > 3;
+
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-4">
       {/* Exercise Name */}
-      <div className="text-center">
-        <h2 className="text-3xl font-bold font-heading text-foreground">
+      <div className="text-center mb-2">
+        <h2 className="text-2xl font-bold font-heading text-zinc-900 uppercase tracking-tight">
           {exercise.name}
         </h2>
         <p className="text-zinc-400 text-sm mt-1">
@@ -106,159 +96,154 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
         </p>
       </div>
 
-      {/* Set Progress Indicator */}
-      <div className="flex justify-center gap-2">
-        {Array.from({ length: totalSets }).map((_, index) => (
-          <div
-            key={index}
-            className={`h-2 w-12 rounded-full transition-colors ${
-              index < currentSet - 1
-                ? 'bg-green-500'
-                : index === currentSet - 1
-                ? 'bg-blue-500'
-                : 'bg-zinc-200'
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* Rep Counter */}
-      <div className="bg-white rounded-3xl p-8 shadow-lg">
-        <p className="text-center text-zinc-400 text-sm uppercase tracking-wider mb-4">
+      {/* Rep Counter - Clean White Card */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-zinc-100">
+        <p className="text-center text-zinc-400 text-xs uppercase tracking-widest font-medium mb-4">
           Reps
         </p>
         <div className="flex items-center justify-center gap-6">
           <motion.button
             onClick={() => setReps(Math.max(1, reps - 1))}
-            whileTap={{ scale: 0.9 }}
-            className="h-16 w-16 rounded-full bg-gradient-to-br from-red-500 to-red-600 text-white flex items-center justify-center shadow-lg"
+            whileTap={{ scale: 0.95 }}
+            className="h-12 w-12 rounded-full bg-red-500 text-white flex items-center justify-center"
           >
-            <Minus size={24} />
+            <Minus size={20} strokeWidth={3} />
           </motion.button>
 
-          <div className="text-7xl font-bold font-heading text-foreground min-w-[120px] text-center">
+          <div className="text-6xl font-bold font-heading text-zinc-900 min-w-[80px] text-center tabular-nums">
             {reps}
           </div>
 
           <motion.button
             onClick={() => setReps(reps + 1)}
-            whileTap={{ scale: 0.9 }}
-            className="h-16 w-16 rounded-full bg-gradient-to-br from-green-500 to-green-600 text-white flex items-center justify-center shadow-lg"
+            whileTap={{ scale: 0.95 }}
+            className="h-12 w-12 rounded-full bg-green-500 text-white flex items-center justify-center"
           >
-            <Plus size={24} />
+            <Plus size={20} strokeWidth={3} />
           </motion.button>
         </div>
       </div>
 
-      {/* Pain Slider (shows after first set) */}
-      <AnimatePresence>
-        {showPainSlider && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="bg-amber-50 rounded-3xl p-6 border-2 border-amber-200"
-          >
-            <div className="flex items-center gap-2 mb-4">
-              <AlertTriangle size={18} className="text-amber-600" />
-              <p className="text-sm font-bold text-amber-900 uppercase tracking-wide">
-                Pain Level?
-              </p>
-            </div>
-            
-            <input
-              type="range"
-              min="0"
-              max="10"
-              value={painLevel}
-              onChange={(e) => setPainLevel(parseInt(e.target.value))}
-              className="w-full h-3 bg-amber-200 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-600"
-            />
-            
-            <div className="flex justify-between mt-2">
-              <span className="text-xs text-amber-600">0 (No pain)</span>
-              <span className="text-2xl font-bold text-amber-900">{painLevel}</span>
-              <span className="text-xs text-amber-600">10 (Severe)</span>
-            </div>
+      {/* Pain Level - Subtle White Card */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-100">
+        <div className="flex items-center gap-2 mb-4">
+          <AlertTriangle size={14} className="text-amber-500" />
+          <p className="text-xs font-bold text-zinc-700 uppercase tracking-wide">
+            Pain Level?
+          </p>
+        </div>
+        
+        <input
+          type="range"
+          min="0"
+          max="10"
+          value={painLevel}
+          onChange={(e) => setPainLevel(parseInt(e.target.value))}
+          className="w-full h-1.5 bg-zinc-200 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-500"
+        />
+        
+        <div className="flex justify-between items-center mt-2">
+          <span className="text-[10px] text-zinc-400 font-medium">0 (No pain)</span>
+          <span className="text-lg font-bold text-zinc-800">{painLevel}</span>
+          <span className="text-[10px] text-zinc-400 font-medium">10 (Severe)</span>
+        </div>
 
-            {painLevel > 3 && (
-              <div className="mt-3 space-y-3">
-                <div className="p-3 bg-red-100 border border-red-300 rounded-xl">
-                  <p className="text-xs text-red-700 font-medium">
-                    ⚠️ High pain detected. Exercise may be swapped to safer alternative.
-                  </p>
-                </div>
-                
-                {/* Blocker Picker - Link to existing issue */}
+        {/* High Pain Warning - Inline */}
+        <AnimatePresence>
+          {showHighPainWarning && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-4 space-y-3"
+            >
+              <div className="p-3 bg-red-50 rounded-xl">
+                <p className="text-xs text-red-600 font-medium">
+                  ⚠️ High pain detected. Exercise may be swapped to safer alternative.
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-xs font-bold text-zinc-600 uppercase tracking-wide mb-2">
+                  Link to Body Issue
+                </p>
                 <BlockerPicker
                   selectedBlockerId={selectedBlockerId}
                   onSelect={setSelectedBlockerId}
                 />
               </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-      {/* Log Set Button */}
+      {/* Action Button */}
       <motion.button
         onClick={handleLogSet}
         disabled={logging || restTimer !== null}
         whileTap={{ scale: 0.98 }}
-        className="w-full h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xl uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        className={`
+          w-full h-14 rounded-2xl font-bold text-base uppercase tracking-wider 
+          flex items-center justify-center gap-2 transition-all
+          ${restTimer !== null 
+            ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed' 
+            : 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+          }
+        `}
       >
         {logging ? (
-          "Logging..."
+          <>
+            <Loader2 className="animate-spin" size={18} />
+            Logging...
+          </>
         ) : restTimer !== null ? (
           <>Rest ({restTimer}s)</>
-        ) : currentSet > totalSets ? (
+        ) : (
           <>
-            <CheckCircle size={20} />
+            <CheckCircle size={18} />
             Exercise Complete
           </>
-        ) : (
-          <>Log Set {currentSet}/{totalSets}</>
         )}
       </motion.button>
 
-      {/* Swap Alert Modal */}
+      {/* Swap Modal */}
       <AnimatePresence>
         {swapSuggestion && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6"
             onClick={handleAcceptSwap}
           >
             <motion.div
-              initial={{ scale: 0.9, y: 20 }}
+              initial={{ scale: 0.95, y: 10 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white rounded-3xl p-8 max-w-sm w-full space-y-4"
+              className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-100 rounded-full mb-4">
-                  <AlertTriangle size={32} className="text-amber-600" />
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-amber-100 rounded-full mb-3">
+                  <AlertTriangle size={24} className="text-amber-600" />
                 </div>
-                <h3 className="text-2xl font-bold text-foreground mb-2">
+                <h3 className="text-lg font-bold text-zinc-900">
                   Exercise Swap
                 </h3>
-                <p className="text-zinc-600 text-sm">
-                  High pain detected. Consider switching to a safer alternative.
+                <p className="text-zinc-500 text-sm mt-1">
+                  Consider a safer alternative.
                 </p>
               </div>
 
-              <div className="bg-zinc-50 rounded-2xl p-4 space-y-2">
+              <div className="bg-zinc-50 rounded-xl p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-zinc-500">From:</span>
-                  <span className="font-bold text-red-600 line-through">
+                  <span className="font-bold text-red-500 line-through text-sm">
                     {swapSuggestion.from}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-zinc-500">To:</span>
-                  <span className="font-bold text-green-600">
+                  <span className="font-bold text-green-600 text-sm">
                     {swapSuggestion.to}
                   </span>
                 </div>
@@ -266,9 +251,9 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
 
               <button
                 onClick={handleAcceptSwap}
-                className="w-full h-14 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold uppercase tracking-wider"
+                className="w-full h-12 rounded-xl bg-green-500 text-white font-bold uppercase tracking-wider text-sm"
               >
-                Got It - Next Exercise
+                Got It
               </button>
             </motion.div>
           </motion.div>

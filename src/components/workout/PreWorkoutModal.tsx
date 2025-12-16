@@ -1,6 +1,5 @@
 "use client";
 
-import { BigButton } from "@/components/ui/BigButton";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Activity, Brain, Coffee, Utensils, X, Zap } from "lucide-react";
@@ -37,43 +36,40 @@ export function PreWorkoutModal({ routineName, onStart, onCancel }: PreWorkoutMo
     });
   };
 
+  // Color system matching your app's palette
   const getRatingColor = (type: 'energy' | 'stress' | 'soreness', value: number) => {
     if (type === 'energy') {
-      // Energy: Low (1) is bad/tired (Red/Gray), High (5) is good (Green/Energy)
+      // Energy: Low = bad (red), High = good (green)
       const colors = {
-        1: "bg-red-400 text-white",
+        1: "bg-red-500 text-white",
         2: "bg-orange-400 text-white",
-        3: "bg-yellow-400 text-black",
-        4: "bg-lime-400 text-black",
-        5: "bg-[#89fe00] text-black", // Brand Energy
+        3: "bg-amber-400 text-zinc-900",
+        4: "bg-lime-400 text-zinc-900",
+        5: "bg-green-500 text-white",
       };
       return colors[value as keyof typeof colors];
-    } 
-    
-    // Stress & Soreness: Low (1) is good (Green), High (5) is bad (Red)
+    }
+    // Stress & Soreness: Low = good (teal), High = bad (red)
     const colors = {
-      1: "bg-emerald-400 text-white",
+      1: "bg-teal-500 text-white",
       2: "bg-teal-400 text-white",
-      3: "bg-yellow-400 text-black",
-      4: "bg-orange-500 text-white",
-      5: "bg-red-600 text-white", 
+      3: "bg-amber-400 text-zinc-900",
+      4: "bg-orange-400 text-white",
+      5: "bg-red-500 text-white",
     };
     return colors[value as keyof typeof colors];
   };
 
-  const getHeaderColor = (type: 'energy' | 'stress' | 'soreness', value: number) => {
-     // Returns text color for the header value (5/5 etc)
-     const bgClass = getRatingColor(type, value);
-     if (bgClass.includes('text-black')) return 'text-zinc-800';
-     
-     // Extract the color name relative to bg (e.g. bg-red-500 -> text-red-600)
-     if (bgClass.includes('red')) return 'text-red-600';
-     if (bgClass.includes('orange')) return 'text-orange-600';
-     if (bgClass.includes('emerald')) return 'text-emerald-600';
-     if (bgClass.includes('teal')) return 'text-teal-600';
-     if (bgClass.includes('lime') || bgClass.includes('#89fe00')) return 'text-lime-600';
-     return 'text-zinc-600';
-  }
+  const getTextColor = (type: 'energy' | 'stress' | 'soreness', value: number) => {
+    if (type === 'energy') {
+      if (value <= 2) return 'text-red-500';
+      if (value === 3) return 'text-amber-500';
+      return 'text-green-500';
+    }
+    if (value <= 2) return 'text-teal-500';
+    if (value === 3) return 'text-amber-500';
+    return 'text-red-500';
+  };
 
   const RatingScale = ({ 
     value, 
@@ -90,43 +86,47 @@ export function PreWorkoutModal({ routineName, onStart, onCancel }: PreWorkoutMo
     type: 'energy' | 'stress' | 'soreness';
     id: string;
   }) => {
-    const activeColorClass = getRatingColor(type, value);
-    const headerColorClass = getHeaderColor(type, value);
+    const activeColor = getRatingColor(type, value);
+    const textColor = getTextColor(type, value);
 
     return (
-      <div className="space-y-4 p-5 rounded-3xl bg-zinc-50/50 border border-zinc-100/80">
-        <div className="flex items-center justify-between px-1">
+      <div className="bg-white rounded-3xl border border-zinc-100 p-5 shadow-sm">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className={cn("p-2 rounded-xl transition-colors duration-300", activeColorClass.split(' ')[0], "bg-opacity-10")}>
-              <Icon size={20} className={headerColorClass} />
+            <div className={cn("p-2 rounded-xl", `${activeColor.split(' ')[0]}/10`)}>
+              <Icon size={20} className={textColor} strokeWidth={2.5} />
             </div>
-            <span className="text-lg font-extrabold uppercase tracking-wide text-zinc-700">{label}</span>
+            <span className="text-base font-bold uppercase tracking-wide text-zinc-700">
+              {label}
+            </span>
           </div>
-          <span className={cn("text-xl font-black transition-colors duration-300", headerColorClass)}>
+          <span className={cn("text-lg font-black", textColor)}>
             {value}/5
           </span>
         </div>
-        
-        <div className="relative flex w-full bg-white p-1.5 rounded-2xl h-14 shadow-sm border border-zinc-100">
+
+        {/* Rating Buttons */}
+        <div className="flex bg-zinc-50 p-1.5 rounded-2xl gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
               onClick={() => onChange(n)}
               className={cn(
-                "flex-1 relative z-10 font-bold text-lg transition-colors duration-300 flex items-center justify-center",
+                "flex-1 h-12 rounded-xl font-bold text-base transition-all duration-200 relative flex items-center justify-center",
                 value === n 
-                  ? (activeColorClass.includes('text-black') ? "text-black" : "text-white") 
-                  : "text-zinc-400 hover:text-zinc-600"
+                  ? (activeColor.includes('text-white') ? "text-white" : "text-zinc-900")
+                  : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
               )}
             >
-              {n}
               {value === n && (
                 <motion.div
-                  layoutId={`indicator-${id}`}
-                  className={cn("absolute inset-0 rounded-xl shadow-md z-[-1]", activeColorClass.split(' ')[0])}
-                  transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                  layoutId={`rating-${id}`}
+                  className={cn("absolute inset-0 rounded-xl shadow-md", activeColor.split(' ')[0])}
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
                 />
               )}
+              <span className="relative z-10">{n}</span>
             </button>
           ))}
         </div>
@@ -139,143 +139,135 @@ export function PreWorkoutModal({ routineName, onStart, onCancel }: PreWorkoutMo
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-6"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
     >
       <motion.div
-        initial={{ scale: 0.95, opacity: 0, y: 30 }}
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        className="bg-gradient-to-b from-orange-50/80 to-white rounded-[2rem] w-full max-w-md shadow-2xl relative flex flex-col max-h-[90vh] overflow-hidden"
       >
-        {/* Close Button - Floated */}
-        <div className="absolute top-4 right-4 z-20">
-             <button 
-                onClick={onCancel}
-                className="h-10 w-10 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-400 hover:bg-zinc-200 hover:text-zinc-600 transition-colors"
-                >
-                <X size={20} />
-            </button>
-        </div>
+        {/* Close Button */}
+        <button
+          onClick={onCancel}
+          className="absolute top-5 right-5 z-20 h-10 w-10 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors"
+        >
+          <X size={18} strokeWidth={2.5} />
+        </button>
 
         {/* Header */}
-        <div className="pt-8 pb-2 px-8 text-center bg-gradient-to-b from-white to-white/95">
-          <h2 className="text-5xl font-bold uppercase tracking-tighter font-heading text-primary leading-none">
+        <div className="pt-10 pb-4 px-6 text-center">
+          <h2 className="text-4xl font-bold uppercase tracking-tight font-heading text-zinc-900">
             Check In
           </h2>
-          <p className="text-zinc-400 font-medium text-sm tracking-wide mt-1 uppercase">
+          <div className="h-1 w-20 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full mx-auto mt-3" />
+          <p className="text-zinc-400 font-medium text-sm tracking-wide mt-3 uppercase">
             {routineName}
           </p>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="p-8 space-y-8 overflow-y-auto no-scrollbar">
-          {/* Metrics */}
-          <div className="space-y-6">
-            <RatingScale
-              id="energy"
-              type="energy"
-              value={energy}
-              onChange={setEnergy}
-              icon={Zap}
-              label="Energy"
-            />
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-4 no-scrollbar">
+          <RatingScale
+            id="energy"
+            type="energy"
+            value={energy}
+            onChange={setEnergy}
+            icon={Zap}
+            label="Energy"
+          />
 
-            <RatingScale
-              id="stress"
-              type="stress"
-              value={stress}
-              onChange={setStress}
-              icon={Brain}
-              label="Stress"
-            />
+          <RatingScale
+            id="stress"
+            type="stress"
+            value={stress}
+            onChange={setStress}
+            icon={Brain}
+            label="Stress"
+          />
 
-            <RatingScale
-              id="soreness"
-              type="soreness"
-              value={soreness}
-              onChange={setSoreness}
-              icon={Activity}
-              label="Soreness"
-            />
-          </div>
+          <RatingScale
+            id="soreness"
+            type="soreness"
+            value={soreness}
+            onChange={setSoreness}
+            icon={Activity}
+            label="Soreness"
+          />
 
-          {/* Context Tiles */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Context Row */}
+          <div className="grid grid-cols-2 gap-3 pt-2">
             {/* Fasted Toggle */}
             <button
               onClick={() => setFasted(!fasted)}
               className={cn(
-                "relative group overflow-hidden rounded-3xl p-5 border transition-all duration-300 h-32 flex flex-col justify-between text-left",
+                "bg-white rounded-2xl border p-4 text-left transition-all h-28 flex flex-col justify-between",
                 fasted 
-                  ? "border-amber-400 bg-amber-50/80" 
-                  : "border-zinc-100/80 bg-zinc-50/50 hover:bg-zinc-100 hover:border-zinc-200"
+                  ? "border-amber-300 bg-amber-50/50" 
+                  : "border-zinc-100 hover:border-zinc-200"
               )}
             >
-               <div className="flex justify-between w-full">
-                 <div className={cn(
-                    "p-2 rounded-xl transition-colors",
-                    fasted ? "bg-amber-100 text-amber-600" : "bg-white text-zinc-400 border border-zinc-100"
-                    )}>
-                    <Utensils size={20} />
-                 </div>
-                 <div className={cn(
-                    "w-5 h-5 rounded-full border-2 transition-colors",
-                     fasted ? "border-amber-500 bg-amber-500" : "border-zinc-300"
+              <div className="flex items-center justify-between">
+                <div className={cn(
+                  "p-2 rounded-xl",
+                  fasted ? "bg-amber-100 text-amber-600" : "bg-zinc-100 text-zinc-400"
+                )}>
+                  <Utensils size={18} strokeWidth={2.5} />
+                </div>
+                <div className={cn(
+                  "h-5 w-5 rounded-full border-2 transition-all",
+                  fasted ? "bg-amber-500 border-amber-500" : "border-zinc-300"
                 )} />
-               </div>
-               
-               <div>
-                  <p className={cn(
-                    "font-extrabold uppercase tracking-wide text-lg",
-                    fasted ? "text-amber-700" : "text-zinc-500"
-                  )}>
-                    Fasted
-                  </p>
-                  <p className="text-[11px] text-zinc-400 font-semibold mt-0.5">
-                    {fasted ? "Yes, empty stomach" : "No, verify intake"}
-                  </p>
-               </div>
+              </div>
+              <div>
+                <p className={cn(
+                  "font-bold text-sm uppercase tracking-wide",
+                  fasted ? "text-amber-700" : "text-zinc-500"
+                )}>
+                  Fasted
+                </p>
+                <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
+                  {fasted ? "Empty stomach" : "Had food"}
+                </p>
+              </div>
             </button>
 
             {/* Caffeine Input */}
-            <div className="relative rounded-3xl p-5 border border-zinc-100/80 bg-zinc-50/50 h-32 flex flex-col justify-between overflow-hidden">
-                <div className="flex justify-between w-full">
-                    <div className="p-2 rounded-xl bg-white text-zinc-500 border border-zinc-100">
-                        <Coffee size={20} />
-                    </div>
-                 </div>
-
-                 <div className="flex items-end justify-between">
-                     <div>
-                        <p className="font-extrabold uppercase tracking-wide text-lg text-zinc-500">
-                            Caffeine
-                        </p>
-                        <p className="text-[11px] text-zinc-400 font-semibold mt-0.5">Milligrams</p>
-                     </div>
-                     
-                     <div className="absolute top-5 right-5">
-                        <input
-                            type="number"
-                            min="0"
-                            max="999"
-                            value={caffeine || ""}
-                            onChange={(e) => setCaffeine(parseInt(e.target.value) || 0)}
-                            placeholder="0"
-                            className="w-20 bg-transparent text-right font-black text-4xl text-zinc-800 placeholder-zinc-200 focus:outline-none z-10 p-0"
-                        />
-                     </div>
-                 </div>
+            <div className="bg-white rounded-2xl border border-zinc-100 p-4 h-28 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <div className="p-2 rounded-xl bg-zinc-100 text-zinc-400">
+                  <Coffee size={18} strokeWidth={2.5} />
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  max="999"
+                  value={caffeine || ""}
+                  onChange={(e) => setCaffeine(parseInt(e.target.value) || 0)}
+                  placeholder="0"
+                  className="w-16 text-right font-black text-2xl text-zinc-800 placeholder-zinc-300 focus:outline-none bg-transparent"
+                />
+              </div>
+              <div>
+                <p className="font-bold text-sm uppercase tracking-wide text-zinc-500">
+                  Caffeine
+                </p>
+                <p className="text-[10px] text-zinc-400 font-medium mt-0.5">
+                  Milligrams
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="p-8 pt-2 bg-white rounded-b-[2.5rem]">
-          <BigButton 
-            onClick={handleSubmit} 
-            className="w-full text-2xl py-6 shadow-xl shadow-red-500/20"
+        <div className="p-6 pt-4 bg-white">
+          <button
+            onClick={handleSubmit}
+            className="w-full py-5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xl font-bold uppercase tracking-wide rounded-2xl shadow-lg shadow-orange-500/25 transition-all active:scale-[0.98]"
           >
             Start Workout
-          </BigButton>
+          </button>
         </div>
       </motion.div>
     </motion.div>
