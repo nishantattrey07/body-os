@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export function WaterTracker({ target = 4000 }: { target?: number }) {
+export function WaterTracker({ target = 4000, onUpdate }: { target?: number; onUpdate?: () => void }) {
   const [total, setTotal] = useState(0);
   const [tapping, setTapping] = useState(false);
   
@@ -32,6 +32,7 @@ export function WaterTracker({ target = 4000 }: { target?: number }) {
     try {
       await logWater(PER_TAP);
       setTotal(prev => prev + PER_TAP);
+      if (onUpdate) onUpdate(); // Trigger parent refresh
     } catch (error) {
       console.error("Failed to log water:", error);
       alert("Failed to log water. Please try again.");
