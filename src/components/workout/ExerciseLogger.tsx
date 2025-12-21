@@ -28,65 +28,84 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
   const handleLogSet = async () => {
     if (logging) return;
     
-    setLogging(true);
-    try {
-      // Calculate actual rest taken (if we were resting before this set)
-      let actualRestTaken: number | undefined;
-      if (restStartTime) {
-        actualRestTaken = Math.floor((Date.now() - restStartTime.getTime()) / 1000);
-        setRestStartTime(null); // Reset for next rest period
+    // Calculate actual rest taken (if we were resting before this set)
+    let actualRestTaken: number | undefined;
+    if (restStartTime) {
+      actualRestTaken = Math.floor((Date.now() - restStartTime.getTime()) / 1000);
+      setRestStartTime(null);
+    }
+
+    // Capture current values for potential rollback
+    const previousSet = currentSet;
+    const isLastSet = currentSet >= totalSets;
+    
+    // OPTIMISTIC UPDATE: Update UI immediately
+    if (!isLastSet) {
+      setCurrentSet(prev => prev + 1);
+      
+      const restTime = exercise.restSeconds !== undefined ? exercise.restSeconds : 60;
+      if (restTime > 0) {
+        setRestTimerMax(restTime);
+        setRestTimer(restTime);
+        setRestStartTime(new Date());
+        const timer = setInterval(() => {
+          setRestTimer(prev => {
+            if (prev === null || prev <= 1) {
+              clearInterval(timer);
+              return null;
+            }
+            return prev - 1;
+          });
+        }, 1000);
       }
+    } else {
+      // For last set, show brief completion state
+      setLogging(true);
+    }
 
-      if (sessionExerciseId) {
-        const result = await logSet({
-          sessionExerciseId,
-          setNumber: currentSet,
-          targetReps: exercise.defaultReps || 10,
-          actualReps: reps,
-          weight: 0,
-          painLevel: painLevel,
-          restTaken: actualRestTaken, // Pass actual rest duration to be stored
-          aggravatedBlockerId: selectedBlockerId || undefined,
-        });
-
+    // BACKGROUND SAVE: Fire and forget with error handling
+    if (sessionExerciseId) {
+      logSet({
+        sessionExerciseId,
+        setNumber: previousSet,
+        targetReps: exercise.defaultReps || 10,
+        actualReps: reps,
+        weight: 0,
+        painLevel: painLevel,
+        restTaken: actualRestTaken,
+        aggravatedBlockerId: selectedBlockerId || undefined,
+      }).then(result => {
         if (result.swapSuggestion) {
           setSwapSuggestion(result.swapSuggestion);
+          // Rollback the set increment since we need to show swap modal
+          setCurrentSet(previousSet);
+          setRestTimer(null);
           return;
         }
-      }
 
-      if (currentSet >= totalSets) {
-        if (sessionExerciseId) {
-          await completeExercise(sessionExerciseId);
+        // If this was the last set, complete the exercise
+        if (isLastSet) {
+          completeExercise(sessionExerciseId).then(() => {
+            setTimeout(() => onComplete(totalSets), 300);
+          }).catch(error => {
+            console.error("Failed to complete exercise:", error);
+            toast.error("Failed to complete exercise. Please try again.");
+            setLogging(false);
+          });
         }
+      }).catch(error => {
+        // ROLLBACK on error
+        console.error("Failed to log set:", error);
+        toast.error("Failed to save set. Rolling back...");
+        setCurrentSet(previousSet);
+        setRestTimer(null);
+        setLogging(false);
+      });
+    } else {
+      // No sessionExerciseId - just update UI (demo mode)
+      if (isLastSet) {
         setTimeout(() => onComplete(totalSets), 500);
-      } else {
-        setCurrentSet(prev => prev + 1);
-        
-        const restTime = exercise.restSeconds !== undefined ? exercise.restSeconds : 60;
-        
-        if (restTime > 0) {
-          setRestTimerMax(restTime);
-          setRestTimer(restTime);
-          setRestStartTime(new Date()); // Track when rest period started
-          const timer = setInterval(() => {
-            setRestTimer(prev => {
-              if (prev === null || prev <= 1) {
-                clearInterval(timer);
-                return null;
-              }
-              return prev - 1;
-            });
-          }, 1000);
-        } else {
-          setRestTimer(null);
-        }
       }
-    } catch (error: any) {
-      console.error("Failed to log exercise:", error);
-      toast.error("Failed to log exercise. Please try again.");
-    } finally {
-      setLogging(false);
     }
   };
 

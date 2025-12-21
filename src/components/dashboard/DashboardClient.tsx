@@ -131,6 +131,7 @@ export function DashboardClient() {
           <MorningCheckIn 
             key="morning" 
             onComplete={handleCheckInComplete}
+            onBack={() => setNeedsCheckIn(false)}
             cutoffHour={cutoffHour}
             cutoffMinute={cutoffMinute}
           />

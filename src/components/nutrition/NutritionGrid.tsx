@@ -5,10 +5,9 @@ import { useDailyLog } from "@/hooks/queries/useDailyLog";
 import { useInventory } from "@/hooks/queries/useInventory";
 import { useUserSettings } from "@/hooks/queries/useUserSettings";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-
+import { NutritionSkeleton } from "./NutritionSkeleton";
 interface FoodCardProps {
   id: string;
   name: string;
@@ -142,11 +141,7 @@ export function NutritionGrid({ onLog }: NutritionGridProps) {
   };
 
   if (itemsLoading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="animate-spin text-zinc-300 w-8 h-8" />
-      </div>
-    );
+    return <NutritionSkeleton />;
   }
 
   return (
