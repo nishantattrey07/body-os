@@ -1,9 +1,9 @@
 import { NavigationProvider } from "@/providers/NavigationProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
+import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
 import { Inter, Teko } from "next/font/google";
 import { Toaster } from "sonner";
-import { Analytics } from "@vercel/analytics/next"
 import "./globals.css";
 
 const inter = Inter({
