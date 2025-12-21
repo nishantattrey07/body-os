@@ -94,8 +94,15 @@ export default function WorkoutPage() {
       const existingSession = await getActiveSession();
       
       if (existingSession) {
-        setActiveSession(existingSession);
-        setShowResumeModal(true);
+        // If warmup is not completed, auto-abandon the session (Option A)
+        if (!existingSession.warmupCompleted) {
+          await abandonWorkoutSession(existingSession.id);
+          // Don't show resume modal, just load fresh
+        } else {
+          // Warmup was completed, show resume modal
+          setActiveSession(existingSession);
+          setShowResumeModal(true);
+        }
       }
       
       // Load routines with pagination
@@ -556,7 +563,7 @@ export default function WorkoutPage() {
             exit={{ opacity: 0, x: 20 }}
             className="p-6 pt-24"
           >
-            <WarmupGate onUnlock={handleWarmupComplete} />
+            <WarmupGate sessionId={activeSession?.id || ''} onUnlock={handleWarmupComplete} />
           </motion.div>
         )}
 

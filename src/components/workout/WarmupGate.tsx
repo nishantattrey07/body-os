@@ -1,16 +1,17 @@
 "use client";
 
-import { getTodayWarmupProgress, getWarmupChecklist, isWarmupComplete, toggleWarmupItem } from "@/app/actions/workout";
+import { getSessionWarmupProgress, getWarmupChecklist, isWarmupComplete, markWarmupComplete, toggleWarmupItem } from "@/app/actions/workout";
 import { motion } from "framer-motion";
 import { Check, Loader2, Unlock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 interface WarmupGateProps {
+  sessionId: string;
   onUnlock: () => void;
 }
 
-export function WarmupGate({ onUnlock }: WarmupGateProps) {
+export function WarmupGate({ sessionId, onUnlock }: WarmupGateProps) {
   const [warmups, setWarmups] = useState<any[]>([]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -18,19 +19,19 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
 
   useEffect(() => {
     loadWarmupData();
-  }, []);
+  }, [sessionId]);
 
   const loadWarmupData = async () => {
     try {
-      const [allWarmups, todayProgress] = await Promise.all([
+      const [allWarmups, sessionProgress] = await Promise.all([
         getWarmupChecklist(),
-        getTodayWarmupProgress()
+        getSessionWarmupProgress(sessionId)
       ]);
 
       setWarmups(allWarmups);
       
       const completedIds = new Set(
-        todayProgress
+        sessionProgress
           .filter((log: any) => log.completed)
           .map((log: any) => log.warmupChecklistId)
       );
@@ -58,7 +59,7 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
     });
     
     try {
-      await toggleWarmupItem(warmupId, newState);
+      await toggleWarmupItem(sessionId, warmupId, newState);
     } catch (error) {
       console.error("Failed to toggle warmup item:", error);
       
@@ -80,8 +81,10 @@ export function WarmupGate({ onUnlock }: WarmupGateProps) {
   const handleUnlock = async () => {
     setUnlocking(true);
     try {
-      const isComplete = await isWarmupComplete();
+      const isComplete = await isWarmupComplete(sessionId);
       if (isComplete) {
+        // Mark warmup as complete on the session
+        await markWarmupComplete(sessionId);
         setTimeout(() => onUnlock(), 500);
       } else {
         toast.warning("Complete all warmup items first!");

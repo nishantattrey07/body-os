@@ -127,7 +127,7 @@ export function PostWorkoutModal({
             transition={{ delay: 0.3 }}
             className="text-2xl font-bold text-zinc-900"
           >
-            Great Work! 💪
+            Great Work!
           </motion.h2>
           <motion.p 
             initial={{ opacity: 0 }}

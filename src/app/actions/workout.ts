@@ -1,8 +1,6 @@
 "use server";
 
 import { auth } from "@/auth";
-import { getDailyLogKey } from "@/lib/date-utils";
-import { getUserCutoff } from "@/lib/defaults";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -53,22 +51,19 @@ export async function getWarmupChecklist() {
 }
 
 /**
- * Get today's warmup progress
+ * Get warmup progress for a specific workout session
  */
-export async function getTodayWarmupProgress() {
+export async function getSessionWarmupProgress(workoutSessionId: string) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
             return [];
         }
 
-        const cutoff = await getUserCutoff(session.user.id);
-        const today = getDailyLogKey(undefined, cutoff.hour, cutoff.minute);
-
         const logs = await prisma.warmupLog.findMany({
             where: {
                 userId: session.user.id,
-                date: today,
+                workoutSessionId,
             },
             include: {
                 warmupChecklist: true,
@@ -77,30 +72,27 @@ export async function getTodayWarmupProgress() {
 
         return logs;
     } catch (error) {
-        console.error("Failed to fetch warmup progress:", error);
+        console.error("Failed to fetch session warmup progress:", error);
         return [];
     }
 }
 
 /**
- * Toggle warmup item completion state
+ * Toggle warmup item completion state for a specific session
  */
-export async function toggleWarmupItem(warmupChecklistId: string, completed: boolean) {
+export async function toggleWarmupItem(workoutSessionId: string, warmupChecklistId: string, completed: boolean) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
             throw new Error("Unauthorized");
         }
 
-        const cutoff = await getUserCutoff(session.user.id);
-        const today = getDailyLogKey(undefined, cutoff.hour, cutoff.minute);
-
         const log = await prisma.warmupLog.upsert({
             where: {
-                userId_warmupChecklistId_date: {
+                userId_warmupChecklistId_workoutSessionId: {
                     userId: session.user.id,
                     warmupChecklistId,
-                    date: today,
+                    workoutSessionId,
                 },
             },
             update: {
@@ -109,7 +101,7 @@ export async function toggleWarmupItem(warmupChecklistId: string, completed: boo
             create: {
                 userId: session.user.id,
                 warmupChecklistId,
-                date: today,
+                workoutSessionId,
                 completed,
             },
             include: {
@@ -125,40 +117,51 @@ export async function toggleWarmupItem(warmupChecklistId: string, completed: boo
 }
 
 /**
- * DEPRECATED: Use toggleWarmupItem instead
- * Mark warmup item as complete
+ * Mark warmup as complete for a session
  */
-export async function completeWarmupItem(warmupChecklistId: string) {
-    return toggleWarmupItem(warmupChecklistId, true);
+export async function markWarmupComplete(workoutSessionId: string) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            throw new Error("Unauthorized");
+        }
+
+        const updated = await prisma.workoutSession.update({
+            where: { id: workoutSessionId },
+            data: { warmupCompleted: true },
+        });
+
+        return updated;
+    } catch (error) {
+        console.error("Failed to mark warmup complete:", error);
+        throw error;
+    }
 }
 
 /**
- * Check if warmup is complete (gatekeeper)
+ * Check if warmup is complete for a specific session
  */
-export async function isWarmupComplete() {
+export async function isWarmupComplete(workoutSessionId: string) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
             return false;
         }
 
-        const cutoff = await getUserCutoff(session.user.id);
-        const today = getDailyLogKey(undefined, cutoff.hour, cutoff.minute);
-
         // Get all warmup items
         const allWarmups = await prisma.warmupChecklist.findMany();
 
-        // Get today's completed warmups
+        // Get session's completed warmups
         const completedWarmups = await prisma.warmupLog.findMany({
             where: {
                 userId: session.user.id,
-                date: today,
+                workoutSessionId,
                 completed: true,
             },
         });
 
         // All warmups must be completed
-        const isComplete = completedWarmups.length === allWarmups.length;
+        const isComplete = completedWarmups.length >= allWarmups.length;
 
         return isComplete;
     } catch (error) {

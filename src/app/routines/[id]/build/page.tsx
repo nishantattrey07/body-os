@@ -9,7 +9,7 @@ import {
     removeExerciseFromRoutine
 } from "@/app/actions/routines";
 import { motion, Reorder } from "framer-motion";
-import { ArrowLeft, GripVertical, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, GripVertical, Plus, Save, Search, Trash2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -44,6 +44,7 @@ export default function RoutineBuilderPage() {
     const [loading, setLoading] = useState(true);
     const [isDirty, setIsDirty] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
         loadData();
@@ -300,30 +301,68 @@ export default function RoutineBuilderPage() {
                         initial={{ y: "100%" }}
                         animate={{ y: 0 }}
                         exit={{ y: "100%" }}
-                        className="w-full bg-white rounded-t-3xl max-h-[80vh] overflow-y-auto"
+                        className="w-full bg-white rounded-t-3xl max-h-[80vh] flex flex-col"
                     >
-                        <div className="sticky top-0 bg-white border-b border-zinc-100 p-6 flex items-center justify-between">
-                            <h2 className="text-xl font-bold font-heading">Add Exercise</h2>
-                            <button
-                                onClick={() => setShowExercisePicker(false)}
-                                className="text-zinc-500 hover:text-zinc-700"
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                        <div className="p-6 space-y-2">
-                            {availableExercises.map((exercise) => (
+                        {/* Sticky Header with Search */}
+                        <div className="sticky top-0 bg-white border-b border-zinc-100 p-6 space-y-4 z-10">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-bold font-heading">Add Exercise</h2>
                                 <button
-                                    key={exercise.id}
-                                    onClick={() => handleAddExercise(exercise)}
-                                    className="w-full text-left p-4 bg-zinc-50 hover:bg-orange-50 rounded-xl transition-colors"
+                                    onClick={() => {
+                                        setShowExercisePicker(false);
+                                        setSearchQuery("");
+                                    }}
+                                    className="text-zinc-500 hover:text-zinc-700"
                                 >
-                                    <div className="font-semibold text-zinc-900">{exercise.name}</div>
-                                    <div className="text-sm text-zinc-500">
-                                        {exercise.category} • {exercise.defaultSets}×{exercise.defaultReps}
-                                    </div>
+                                    Cancel
                                 </button>
-                            ))}
+                            </div>
+                            
+                            {/* Search Input */}
+                            <div className="relative">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search exercises..."
+                                    className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-zinc-200 focus:border-orange-500 outline-none font-medium text-zinc-800 placeholder:text-zinc-400"
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+                        
+                        {/* Scrollable Exercise List */}
+                        <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-2">
+                            {availableExercises
+                                .filter(exercise => 
+                                    searchQuery.trim() === "" || 
+                                    exercise.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                    exercise.category.toLowerCase().includes(searchQuery.toLowerCase())
+                                )
+                                .map((exercise) => (
+                                    <button
+                                        key={exercise.id}
+                                        onClick={() => handleAddExercise(exercise)}
+                                        className="w-full text-left p-4 bg-zinc-50 hover:bg-orange-50 rounded-xl transition-colors"
+                                    >
+                                        <div className="font-semibold text-zinc-900">{exercise.name}</div>
+                                        <div className="text-sm text-zinc-500">
+                                            {exercise.category} • {exercise.defaultSets}×{exercise.defaultReps}
+                                        </div>
+                                    </button>
+                                ))}
+                            
+                            {/* Empty State */}
+                            {availableExercises.filter(e =>
+                                searchQuery.trim() === "" ||
+                                e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                e.category.toLowerCase().includes(searchQuery.toLowerCase())
+                            ).length === 0 && (
+                                <div className="text-center py-8 text-zinc-500">
+                                    No exercises found for &ldquo;{searchQuery}&rdquo;
+                                </div>
+                            )}
                         </div>
                     </motion.div>
                 </div>

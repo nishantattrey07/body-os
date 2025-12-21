@@ -182,18 +182,20 @@ model WarmupChecklist {
 }
 
 model WarmupLog {
-  id                String          @id @default(uuid())
-  date              DateTime        @default(now())
-  warmupChecklistId String
-  warmupChecklist   WarmupChecklist @relation(fields: [warmupChecklistId], references: [id])
-  completed         Boolean         @default(false)
-  userId            String
-  user              User            @relation(fields: [userId], references: [id])
+  id                 String          @id @default(uuid())
+  date               DateTime        @default(now())
+  warmupChecklistId  String
+  warmupChecklist    WarmupChecklist @relation(fields: [warmupChecklistId], references: [id])
+  completed          Boolean         @default(false)
+  userId             String
+  user               User            @relation(fields: [userId], references: [id])
   
-  // Link to workout session that used this warmup
-  session           WorkoutSession?
+  // Link to workout session (session-scoped warmups)
+  workoutSessionId   String?
+  workoutSession     WorkoutSession? @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
   
-  @@unique([userId, warmupChecklistId, date])
+  @@unique([userId, warmupChecklistId, workoutSessionId])
+  @@index([workoutSessionId])
 }
 
 model WaterLog {
@@ -340,6 +342,9 @@ model WorkoutSession {
   programName        String?           // "PPL Week 4", "Starting Strength", custom name
   mesocycleWeek      Int?              // Week 1-8 of current training block
   
+  // === WARMUP ===
+  warmupCompleted    Boolean           @default(false)  // Did user complete warmup phase?
+  
   // === NOTES ===
   notes              String?
   
@@ -349,10 +354,7 @@ model WorkoutSession {
   routineId          String?
   routine            WorkoutRoutine?   @relation(fields: [routineId], references: [id])
   exercises          SessionExercise[]
-  
-  // Link to the Warmup that unlocked this session
-  warmupLogId        String?           @unique
-  warmupLog          WarmupLog?        @relation(fields: [warmupLogId], references: [id])
+  warmupLogs         WarmupLog[]       // Session-scoped warmup items
   
   @@index([userId, date])
   @@index([userId, year, month])

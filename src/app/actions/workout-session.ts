@@ -33,7 +33,7 @@ export async function getActiveSession() {
                 },
                 orderBy: { order: 'asc' },
             },
-            warmupLog: true,
+            warmupLogs: true,
         },
     });
 
