@@ -8,12 +8,14 @@ interface RoutineExercise {
     id: string;
     order: number;
     sets: number;
-    reps: number;
+    reps: number | null;
+    duration: number | null;  // For time-based exercises (seconds)
     restSeconds: number;
     exercise: {
         id: string;
         name: string;
         category: string;
+        trackingType: string;  // "reps" | "seconds"
     };
 }
 
@@ -93,7 +95,10 @@ export function RoutineCard({ routine, onEdit, onDelete, onBuild }: RoutineCardP
                             <div className="flex-1">
                                 <span className="font-semibold text-zinc-900">{re.exercise.name}</span>
                                 <span className="text-zinc-500 ml-2">
-                                    {re.sets}×{re.reps} • {re.restSeconds}s rest
+                                    {re.exercise.trackingType === "seconds" 
+                                      ? `${re.duration ?? 60}s × ${re.sets}`
+                                      : `${re.sets}×${re.reps ?? 10}`
+                                    } • {re.restSeconds}s rest
                                 </span>
                             </div>
                         </div>

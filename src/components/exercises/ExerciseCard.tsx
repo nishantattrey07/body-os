@@ -7,8 +7,10 @@ interface Exercise {
     id: string;
     name: string;
     category: string;
+    trackingType?: string;
     defaultSets: number;
-    defaultReps: number;
+    defaultReps?: number | null;
+    defaultDuration?: number | null;
     description?: string | null;
     isSystem: boolean;
 }
@@ -20,6 +22,8 @@ interface ExerciseCardProps {
 }
 
 export function ExerciseCard({ exercise, onEdit, onDelete }: ExerciseCardProps) {
+    const isTimeBased = exercise.trackingType === "seconds";
+    
     return (
         <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -43,15 +47,17 @@ export function ExerciseCard({ exercise, onEdit, onDelete }: ExerciseCardProps) 
                 </p>
             </div>
 
-            {/* Sets & Reps */}
+            {/* Sets & Reps/Seconds */}
             <div className="flex items-center gap-4 mb-3">
                 <div className="flex items-center gap-1 text-sm">
                     <span className="font-bold text-zinc-900">{exercise.defaultSets}</span>
                     <span className="text-zinc-500">sets</span>
                 </div>
                 <div className="flex items-center gap-1 text-sm">
-                    <span className="font-bold text-zinc-900">{exercise.defaultReps}</span>
-                    <span className="text-zinc-500">reps</span>
+                    <span className="font-bold text-zinc-900">
+                        {isTimeBased ? (exercise.defaultDuration || 60) : (exercise.defaultReps || 10)}
+                    </span>
+                    <span className="text-zinc-500">{isTimeBased ? "sec" : "reps"}</span>
                 </div>
             </div>
 

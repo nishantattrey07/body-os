@@ -19,7 +19,8 @@ type RoutineExercise = {
     id: string;
     order: number;
     sets: number;
-    reps: number;
+    reps: number | null;
+    duration: number | null;  // For time-based exercises (seconds)
     restSeconds: number;
     exercise: Exercise;
 };
@@ -28,8 +29,10 @@ type Exercise = {
     id: string;
     name: string;
     category: string;
+    trackingType: string;      // "reps" | "seconds"
     defaultSets: number;
-    defaultReps: number;
+    defaultReps: number | null;
+    defaultDuration: number | null;
 };
 
 export default function RoutineBuilderPage() {
@@ -128,7 +131,7 @@ export default function RoutineBuilderPage() {
 
     const handleUpdateConfig = (
         routineExerciseId: string,
-        field: "sets" | "reps" | "restSeconds",
+        field: "sets" | "reps" | "duration" | "restSeconds",
         value: number
     ) => {
         setLocalExercises(prev => prev.map(e => 
@@ -231,17 +234,20 @@ export default function RoutineBuilderPage() {
                                                 />
                                             </div>
 
-                                            {/* Reps */}
+                                            {/* Reps or Seconds based on trackingType */}
                                             <div>
                                                 <label className="text-xs text-zinc-500 uppercase tracking-wider font-bold block mb-1">
-                                                    Reps
+                                                    {re.exercise.trackingType === "seconds" ? "Seconds" : "Reps"}
                                                 </label>
                                                 <input
                                                     type="number"
-                                                    value={re.reps}
-                                                    onChange={(e) =>
-                                                        handleUpdateConfig(re.id, "reps", parseInt(e.target.value) || 1)
-                                                    }
+                                                    value={re.exercise.trackingType === "seconds" 
+                                                        ? (re.duration ?? 60) 
+                                                        : (re.reps ?? 10)}
+                                                    onChange={(e) => {
+                                                        const field = re.exercise.trackingType === "seconds" ? "duration" : "reps";
+                                                        handleUpdateConfig(re.id, field, parseInt(e.target.value) || 1);
+                                                    }}
                                                     min="1"
                                                     className="w-full px-3 py-2 rounded-lg border-2 border-zinc-200 focus:border-orange-500 outline-none font-bold text-center"
                                                 />
@@ -348,7 +354,11 @@ export default function RoutineBuilderPage() {
                                     >
                                         <div className="font-semibold text-zinc-900">{exercise.name}</div>
                                         <div className="text-sm text-zinc-500">
-                                            {exercise.category} • {exercise.defaultSets}×{exercise.defaultReps}
+                                            {exercise.category} • {exercise.defaultSets}×{
+                                                exercise.trackingType === "seconds" 
+                                                    ? `${exercise.defaultDuration || 60}s`
+                                                    : exercise.defaultReps || 10
+                                            }
                                         </div>
                                     </button>
                                 ))}

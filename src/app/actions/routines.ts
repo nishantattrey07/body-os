@@ -287,7 +287,8 @@ export async function addExerciseToRoutine(
     exerciseId: string,
     config: {
         sets: number;
-        reps: number;
+        reps?: number | null;
+        duration?: number | null; // For time-based exercises (seconds)
         restSeconds: number;
     }
 ) {
@@ -320,7 +321,8 @@ export async function addExerciseToRoutine(
                 exerciseId,
                 order: maxOrder + 1,
                 sets: config.sets,
-                reps: config.reps,
+                reps: config.reps ?? undefined,
+                duration: config.duration ?? undefined,
                 restSeconds: config.restSeconds,
             },
             include: {
@@ -342,7 +344,8 @@ export async function updateRoutineExercise(
     routineExerciseId: string,
     config: {
         sets?: number;
-        reps?: number;
+        reps?: number | null;
+        duration?: number | null;
         restSeconds?: number;
     }
 ) {
@@ -368,7 +371,12 @@ export async function updateRoutineExercise(
 
         const updated = await prisma.routineExercise.update({
             where: { id: routineExerciseId },
-            data: config,
+            data: {
+                sets: config.sets,
+                reps: config.reps ?? undefined,
+                duration: config.duration ?? undefined,
+                restSeconds: config.restSeconds,
+            },
         });
 
         return updated;
@@ -465,7 +473,8 @@ export async function batchUpdateRoutineExercises(
         id: string;
         order: number;
         sets: number;
-        reps: number;
+        reps?: number | null;
+        duration?: number | null;
         restSeconds: number;
     }[]
 ) {
@@ -496,7 +505,8 @@ export async function batchUpdateRoutineExercises(
                     data: {
                         order: e.order,
                         sets: e.sets,
-                        reps: e.reps,
+                        reps: e.reps ?? undefined,
+                        duration: e.duration ?? undefined,
                         restSeconds: e.restSeconds,
                     },
                 })

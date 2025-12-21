@@ -2,6 +2,7 @@
 
 import { completeExercise, logSet } from "@/app/actions/workout-session";
 import { BlockerPicker } from "@/components/blockers/BlockerPicker";
+import { TimerModal } from "@/components/workout/TimerModal";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, Check, CheckCircle, Loader2, Minus, Plus, Timer } from "lucide-react";
 import { useState } from "react";
@@ -14,7 +15,13 @@ interface ExerciseLoggerProps {
 }
 
 export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: ExerciseLoggerProps) {
-  const [reps, setReps] = useState(exercise.defaultReps || 10);
+  // Determine if this is a time-based exercise (seconds) or reps-based
+  const isTimeBased = exercise.trackingType === "seconds";
+  const [value, setValue] = useState(
+    isTimeBased 
+      ? (exercise.defaultDuration || 60) 
+      : (exercise.defaultReps || 10)
+  );
   const [painLevel, setPainLevel] = useState(0);
   const [selectedBlockerId, setSelectedBlockerId] = useState<string | null>(null);
   const [logging, setLogging] = useState(false);
@@ -23,6 +30,7 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
   const [restStartTime, setRestStartTime] = useState<Date | null>(null); // Track when rest period started
   const [swapSuggestion, setSwapSuggestion] = useState<any>(null);
   const [currentSet, setCurrentSet] = useState(1);
+  const [showTimer, setShowTimer] = useState(false);
   const totalSets = exercise.defaultSets || 3;
 
   const handleLogSet = async () => {
@@ -68,8 +76,11 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
       logSet({
         sessionExerciseId,
         setNumber: previousSet,
-        targetReps: exercise.defaultReps || 10,
-        actualReps: reps,
+        // Conditionally pass reps or seconds based on exercise type
+        targetReps: isTimeBased ? undefined : (exercise.defaultReps || 10),
+        actualReps: isTimeBased ? undefined : value,
+        targetDuration: isTimeBased ? (exercise.defaultDuration || 60) : undefined,
+        actualSeconds: isTimeBased ? value : undefined,
         weight: 0,
         painLevel: painLevel,
         restTaken: actualRestTaken,
@@ -117,6 +128,18 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
   const handleSkipRest = () => {
     setRestTimer(null);
     // Note: restStartTime stays set so we capture actual rest when next set is logged
+  };
+
+  // Handle timer completion for time-based exercises
+  const handleTimerComplete = (actualSeconds: number) => {
+    setValue(actualSeconds);
+    setShowTimer(false);
+    handleLogSet();
+  };
+
+  // Button click handler - now just logs directly (timer is separate button)
+  const handleButtonClick = () => {
+    handleLogSet();
   };
 
   const showHighPainWarning = painLevel > 3;
@@ -178,18 +201,20 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
         {/* Target Reps Badge */}
         <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-zinc-100 rounded-full">
           <span className="text-xs font-medium text-zinc-500">Target:</span>
-          <span className="text-xs font-bold text-zinc-700">{exercise.defaultReps} reps</span>
+          <span className="text-xs font-bold text-zinc-700">
+            {isTimeBased ? exercise.defaultDuration : exercise.defaultReps} {isTimeBased ? 'sec' : 'reps'}
+          </span>
         </div>
       </div>
 
-      {/* Rep Counter - Premium Card */}
+      {/* Counter - Premium Card */}
       <div className="bg-white rounded-3xl p-6 shadow-lg shadow-zinc-900/5 border border-zinc-100/80">
         <p className="text-center text-zinc-400 text-xs uppercase tracking-widest font-medium mb-4">
-          Actual Reps
+          Actual {isTimeBased ? 'Seconds' : 'Reps'}
         </p>
         <div className="flex items-center justify-center gap-8">
           <motion.button
-            onClick={() => setReps(Math.max(1, reps - 1))}
+            onClick={() => setValue(Math.max(1, value - 1))}
             whileTap={{ scale: 0.9 }}
             whileHover={{ scale: 1.05 }}
             className="h-14 w-14 rounded-full bg-gradient-to-br from-red-400 to-red-600 text-white flex items-center justify-center shadow-lg shadow-red-500/30"
@@ -198,16 +223,16 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
           </motion.button>
 
           <motion.div 
-            key={reps}
+            key={value}
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className="text-7xl font-bold font-heading text-zinc-900 min-w-[100px] text-center tabular-nums"
           >
-            {reps}
+            {value}
           </motion.div>
 
           <motion.button
-            onClick={() => setReps(reps + 1)}
+            onClick={() => setValue(value + 1)}
             whileTap={{ scale: 0.9 }}
             whileHover={{ scale: 1.05 }}
             className="h-14 w-14 rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white flex items-center justify-center shadow-lg shadow-green-500/30"
@@ -216,22 +241,35 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
           </motion.button>
         </div>
         
-        {/* Quick adjust buttons */}
+        {/* Quick adjust buttons - contextual for reps vs seconds */}
         <div className="flex justify-center gap-2 mt-4">
-          {[-5, -2, +2, +5].map(delta => (
+          {(isTimeBased ? [-30, -10, +10, +30] : [-5, -2, +2, +5]).map(delta => (
             <button
               key={delta}
-              onClick={() => setReps(Math.max(1, reps + delta))}
+              onClick={() => setValue(Math.max(1, value + delta))}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 delta < 0 
                   ? 'bg-red-50 text-red-600 hover:bg-red-100' 
                   : 'bg-green-50 text-green-600 hover:bg-green-100'
               }`}
             >
-              {delta > 0 ? '+' : ''}{delta}
+              {delta > 0 ? '+' : ''}{delta}{isTimeBased ? 's' : ''}
             </button>
           ))}
         </div>
+
+        {/* Start Timer button for time-based exercises */}
+        {isTimeBased && (
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() => setShowTimer(true)}
+            className="mt-4 w-full py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-xl font-bold text-sm uppercase tracking-wider shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform"
+          >
+            <Timer size={18} />
+            Use Stopwatch Timer
+          </motion.button>
+        )}
       </div>
 
       {/* Pain Level - Collapsible Subtle Card */}
@@ -335,7 +373,7 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            onClick={handleLogSet}
+            onClick={handleButtonClick}
             disabled={logging}
             whileTap={{ scale: 0.98 }}
             className={`
@@ -422,6 +460,15 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Timer Modal for time-based exercises */}
+      <TimerModal
+        isOpen={showTimer}
+        targetSeconds={value}
+        exerciseName={exercise.name}
+        onComplete={handleTimerComplete}
+        onCancel={() => setShowTimer(false)}
+      />
     </div>
   );
 }

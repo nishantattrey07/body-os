@@ -141,8 +141,13 @@ model NutritionLog {
 model Exercise {
   id             String       @id @default(uuid())
   name           String
-  defaultReps    Int          @default(10)
+  
+  // Tracking type determines how sets are measured
+  trackingType   String       @default("reps") // "reps" | "seconds"
+  defaultReps    Int?         // For reps-based (default: 10 in backend)
+  defaultDuration Int?        // For seconds-based (default: 60 in backend)
   defaultSets    Int          @default(3)
+  
   category       String       // Push, Pull, Legs, Core, or custom
   description    String?
   equipment      String?      // "bodyweight", "dumbbell", "barbell", "cable", "machine"
@@ -230,7 +235,8 @@ model RoutineExercise {
   id          String         @id @default(uuid())
   order       Int
   sets        Int            @default(3)
-  reps        Int            @default(10)
+  reps        Int?           // Target reps (for reps-based)
+  duration    Int?           // Target seconds (for time-based)
   restSeconds Int            @default(90)  // Per-exercise rest time
   
   routineId   String
@@ -369,7 +375,8 @@ model SessionExercise {
   
   // Exercise configuration (copied from RoutineExercise at session start)
   targetSets         Int             @default(3)
-  targetReps         Int             @default(10)
+  targetReps         Int?            // For reps-based
+  targetDuration     Int?            // For time-based (seconds)
   restSeconds        Int             @default(90)
   
   // Timing
@@ -397,8 +404,10 @@ model SetLog {
   setNumber          Int             // 1, 2, 3...
   
   // === PERFORMANCE ===
-  targetReps         Int             // What was planned
-  actualReps         Int             // What was achieved
+  targetReps         Int?            // Target reps (reps-based)
+  actualReps         Int?            // Actual reps achieved (reps-based)
+  targetDuration     Int?            // Target seconds (time-based)
+  actualSeconds      Int?            // Actual seconds achieved (time-based)
   weight             Float           @default(0) // 0 = bodyweight
   weightUnit         String          @default("kg") // "kg" or "lbs"
   

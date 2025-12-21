@@ -131,6 +131,7 @@ export async function startWorkoutSession(data: {
                     exerciseId: re.exercise.id,
                     targetSets: re.sets,
                     targetReps: re.reps,
+                    targetDuration: re.duration, // For time-based exercises
                     restSeconds: re.restSeconds,
                 })),
             },
@@ -159,8 +160,10 @@ export async function startWorkoutSession(data: {
 export async function logSet(data: {
     sessionExerciseId: string;
     setNumber: number;
-    targetReps: number;
-    actualReps: number;
+    targetReps?: number | null;    // For reps-based
+    actualReps?: number | null;    // For reps-based
+    targetDuration?: number | null; // For time-based (seconds)
+    actualSeconds?: number | null;  // For time-based (seconds)
     weight?: number;
     weightUnit?: string;
     rpe?: number;
@@ -209,8 +212,10 @@ export async function logSet(data: {
         data: {
             sessionExerciseId: data.sessionExerciseId,
             setNumber: data.setNumber,
-            targetReps: data.targetReps,
-            actualReps: data.actualReps,
+            targetReps: data.targetReps ?? undefined,
+            actualReps: data.actualReps ?? undefined,
+            targetDuration: data.targetDuration ?? undefined,
+            actualSeconds: data.actualSeconds ?? undefined,
             weight: data.weight ?? 0,
             weightUnit: data.weightUnit ?? 'kg',
             rpe: data.rpe,

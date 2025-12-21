@@ -8,16 +8,20 @@ interface ExerciseFormProps {
     initialData?: {
         name: string;
         category: string;
+        trackingType?: string;
         defaultSets: number;
-        defaultReps: number;
+        defaultReps?: number;
+        defaultDuration?: number;
         description?: string;
     };
     categories: string[];
     onSubmit: (data: {
         name: string;
         category: string;
+        trackingType: string;
         defaultSets: number;
-        defaultReps: number;
+        defaultReps?: number;
+        defaultDuration?: number;
         description?: string;
     }) => void;
     onCancel: () => void;
@@ -29,8 +33,10 @@ export function ExerciseForm({ initialData, categories, onSubmit, onCancel, isOp
     const [category, setCategory] = useState(initialData?.category || categories[0] || "Push");
     const [customCategory, setCustomCategory] = useState("");
     const [showCustomCategory, setShowCustomCategory] = useState(false);
+    const [trackingType, setTrackingType] = useState(initialData?.trackingType || "reps");
     const [defaultSets, setDefaultSets] = useState(initialData?.defaultSets || 3);
     const [defaultReps, setDefaultReps] = useState(initialData?.defaultReps || 10);
+    const [defaultDuration, setDefaultDuration] = useState(initialData?.defaultDuration || 60);
     const [description, setDescription] = useState(initialData?.description || "");
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -38,8 +44,10 @@ export function ExerciseForm({ initialData, categories, onSubmit, onCancel, isOp
         onSubmit({
             name,
             category: showCustomCategory ? customCategory : category,
+            trackingType,
             defaultSets,
-            defaultReps,
+            defaultReps: trackingType === "reps" ? defaultReps : undefined,
+            defaultDuration: trackingType === "seconds" ? defaultDuration : undefined,
             description: description || undefined,
         });
     };
@@ -147,7 +155,38 @@ export function ExerciseForm({ initialData, categories, onSubmit, onCancel, isOp
                                 )}
                             </div>
 
-                            {/* Sets & Reps */}
+                            {/* Tracking Type Toggle */}
+                            <div>
+                                <label className="text-sm font-bold text-zinc-700 uppercase tracking-wider mb-2 block">
+                                    Exercise Type
+                                </label>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setTrackingType("reps")}
+                                        className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all ${
+                                            trackingType === "reps"
+                                                ? "bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg"
+                                                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                                        }`}
+                                    >
+                                        Reps-Based
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setTrackingType("seconds")}
+                                        className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all ${
+                                            trackingType === "seconds"
+                                                ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg"
+                                                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                                        }`}
+                                    >
+                                        Time-Based
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Sets & Reps/Duration */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-sm font-bold text-zinc-700 uppercase tracking-wider mb-2 block">
@@ -164,12 +203,19 @@ export function ExerciseForm({ initialData, categories, onSubmit, onCancel, isOp
                                 </div>
                                 <div>
                                     <label className="text-sm font-bold text-zinc-700 uppercase tracking-wider mb-2 block">
-                                        Default Reps
+                                        {trackingType === "seconds" ? "Default Seconds" : "Default Reps"}
                                     </label>
                                     <input
                                         type="number"
-                                        value={defaultReps}
-                                        onChange={(e) => setDefaultReps(parseInt(e.target.value) || 0)}
+                                        value={trackingType === "seconds" ? defaultDuration : defaultReps}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value) || 0;
+                                            if (trackingType === "seconds") {
+                                                setDefaultDuration(val);
+                                            } else {
+                                                setDefaultReps(val);
+                                            }
+                                        }}
                                         min="1"
                                         required
                                         className="w-full px-4 py-3 rounded-xl border-2 border-zinc-200 focus:border-orange-500 outline-none font-semibold text-center text-2xl"

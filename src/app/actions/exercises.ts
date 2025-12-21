@@ -161,8 +161,10 @@ export async function getExerciseCategories() {
 export async function createExercise(data: {
     name: string;
     category: string;
+    trackingType?: string;
     defaultSets?: number;
     defaultReps?: number;
+    defaultDuration?: number;
     description?: string;
 }) {
     try {
@@ -175,8 +177,13 @@ export async function createExercise(data: {
             data: {
                 name: data.name,
                 category: data.category,
+                trackingType: data.trackingType || "reps",
                 defaultSets: data.defaultSets || 3,
-                defaultReps: data.defaultReps || 10,
+                // Set only the relevant field based on trackingType
+                ...(data.trackingType === "seconds"
+                    ? { defaultDuration: data.defaultDuration || 60 }
+                    : { defaultReps: data.defaultReps || 10 }
+                ),
                 description: data.description,
                 isSystem: false,
                 userId: session.user.id,
