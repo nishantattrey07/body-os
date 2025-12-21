@@ -15,7 +15,13 @@ export const queryKeys = {
     activeSession: ['active-session'] as const,
     routines: (params?: { search?: string; filter?: string }) =>
         ['routines', params ?? {}] as const,
+    routineById: (id: string) => ['routine', id] as const,
     warmupChecklist: ['warmup-checklist'] as const,
+
+    // Exercises queries
+    exercises: (params?: { search?: string; filter?: string; category?: string }) =>
+        ['exercises', params ?? {}] as const,
+    exerciseCategories: ['exercise-categories'] as const,
 } as const;
 
 // Type helpers for invalidation
