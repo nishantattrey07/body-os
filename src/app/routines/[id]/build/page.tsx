@@ -3,6 +3,9 @@ import { getRoutineById } from "@/app/actions/routines";
 import { redirect } from "next/navigation";
 import { RoutineBuilderClient } from "./RoutineBuilderClient";
 
+// This page uses auth() which requires headers - mark as dynamic
+export const dynamic = 'force-dynamic';
+
 interface RoutineBuilderPageProps {
     params: Promise<{ id: string }>;
 }

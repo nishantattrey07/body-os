@@ -2,6 +2,9 @@ import { getRoutinesPaginated } from "@/app/actions/routines";
 import { abandonWorkoutSession, getActiveSession } from "@/app/actions/workout-session";
 import { WorkoutClient } from "@/components/workout/WorkoutClient";
 
+// This page uses auth() which requires headers - mark as dynamic
+export const dynamic = 'force-dynamic';
+
 /**
  * Workout Page - Server Component
  * 

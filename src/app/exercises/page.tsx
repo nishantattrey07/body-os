@@ -1,6 +1,9 @@
 import { getExerciseCategories, getExercisesPaginated } from "@/app/actions/exercises";
 import { ExercisesClient } from "@/components/exercises/ExercisesClient";
 
+// This page uses auth() which requires headers - mark as dynamic
+export const dynamic = 'force-dynamic';
+
 /**
  * Exercises Page - Server Component
  * 

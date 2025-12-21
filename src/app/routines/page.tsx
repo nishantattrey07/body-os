@@ -1,6 +1,9 @@
 import { getRoutinesPaginated } from "@/app/actions/routines";
 import { RoutinesClient } from "@/components/routines/RoutinesClient";
 
+// This page uses auth() which requires headers - mark as dynamic
+export const dynamic = 'force-dynamic';
+
 /**
  * Routines Page - Server Component
  * 

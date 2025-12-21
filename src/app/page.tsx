@@ -2,6 +2,9 @@ import { getTodayLog } from "@/app/actions/daily-log";
 import { getUserSettings } from "@/app/actions/settings";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 
+// This page uses auth() which requires headers - mark as dynamic
+export const dynamic = 'force-dynamic';
+
 /**
  * Dashboard Page - Server Component
  * 
