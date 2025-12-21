@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 
 export interface DailyLog {
     id: string;
-    date: string;
+    date: Date | string;
     weight: number | null;
     sleepHours: number | null;
     bloated: boolean;
@@ -13,6 +13,7 @@ export interface DailyLog {
     fatsTotal: number;
     caloriesTotal: number;
     waterTotal: number;
+    dailyReview?: any;
 }
 
 /**
@@ -22,13 +23,15 @@ export interface DailyLog {
  * - Uses user's cutoff time for "today" calculation
  * - Cached for 1 minute (staleTime from global config)
  * - Refetches on window focus (multi-device sync)
+ * - Accepts initialData from Server Component to avoid loading skeleton
  */
-export function useDailyLog() {
+export function useDailyLog(initialData?: DailyLog | null) {
     return useQuery({
         queryKey: queryKeys.dailyLog(),
         queryFn: async () => {
             const log = await getTodayLog();
             return log as DailyLog | null;
         },
+        initialData,
     });
 }

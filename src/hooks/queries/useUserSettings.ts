@@ -19,14 +19,16 @@ export interface UserSettings {
  * - Singleton query (no params)
  * - Long cache time (settings rarely change)
  * - Used for macro targets, water target, etc.
+ * - Accepts initialData from Server Component to avoid loading skeleton
  */
-export function useUserSettings() {
+export function useUserSettings(initialData?: UserSettings) {
     return useQuery({
         queryKey: queryKeys.userSettings,
         queryFn: async () => {
             const settings = await getUserSettings();
             return settings as UserSettings;
         },
+        initialData,
         // Settings change rarely, cache longer
         staleTime: 1000 * 60 * 5, // 5 minutes
     });

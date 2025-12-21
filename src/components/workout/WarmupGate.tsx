@@ -1,6 +1,6 @@
 "use client";
 
-import { getSessionWarmupProgress, getWarmupChecklist, isWarmupComplete, markWarmupComplete, toggleWarmupItem } from "@/app/actions/workout";
+import { getSessionWarmupProgress, getWarmupChecklist, markWarmupComplete, toggleWarmupItem } from "@/app/actions/workout";
 import { motion } from "framer-motion";
 import { Check, Loader2, Unlock } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -9,12 +9,25 @@ import { toast } from "sonner";
 interface WarmupGateProps {
   sessionId: string;
   onUnlock: () => void;
+  initialWarmupData?: {
+    checklist: any[];
+    progress: any[];
+  };
 }
 
-export function WarmupGate({ sessionId, onUnlock }: WarmupGateProps) {
+/**
+ * WarmupGate - Displays warmup checklist before workout
+ * 
+ * Optimized flow:
+ * - Uses prefetched data (no loading on mount)
+ * - Optimistic toggle (instant UI, background sync)
+ * - No isWarmupComplete check - we check locally!
+ * - markWarmupComplete is fire-and-forget
+ */
+export function WarmupGate({ sessionId, onUnlock, initialWarmupData }: WarmupGateProps) {
   const [warmups, setWarmups] = useState<any[]>([]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialWarmupData);
   const [unlocking, setUnlocking] = useState(false);
 
   useEffect(() => {
@@ -23,31 +36,45 @@ export function WarmupGate({ sessionId, onUnlock }: WarmupGateProps) {
 
   const loadWarmupData = async () => {
     try {
-      const [allWarmups, sessionProgress] = await Promise.all([
-        getWarmupChecklist(),
-        getSessionWarmupProgress(sessionId)
-      ]);
+      if (initialWarmupData) {
+        // Use prefetched data for instant loading
+        setWarmups(initialWarmupData.checklist);
+        
+        const completedIds = new Set(
+          initialWarmupData.progress
+            .filter((log: any) => log.completed)
+            .map((log: any) => log.warmupChecklistId)
+        );
+        setCompleted(completedIds);
+        setLoading(false);
+      } else {
+        // Fallback: fetch data (for resume scenarios)
+        const [allWarmups, sessionProgress] = await Promise.all([
+          getWarmupChecklist(),
+          getSessionWarmupProgress(sessionId)
+        ]);
 
-      setWarmups(allWarmups);
-      
-      const completedIds = new Set(
-        sessionProgress
-          .filter((log: any) => log.completed)
-          .map((log: any) => log.warmupChecklistId)
-      );
-      setCompleted(completedIds);
+        setWarmups(allWarmups);
+        
+        const completedIds = new Set(
+          sessionProgress
+            .filter((log: any) => log.completed)
+            .map((log: any) => log.warmupChecklistId)
+        );
+        setCompleted(completedIds);
+        setLoading(false);
+      }
     } catch (error) {
       console.error("Failed to load warmup data:", error);
-    } finally {
       setLoading(false);
     }
   };
 
-  const handleToggle = async (warmupId: string) => {
+  const handleToggle = (warmupId: string) => {
     const isCurrentlyCompleted = completed.has(warmupId);
     const newState = !isCurrentlyCompleted;
     
-    // Optimistic update
+    // OPTIMISTIC: Update UI immediately
     setCompleted(prev => {
       const newSet = new Set(prev);
       if (newState) {
@@ -58,12 +85,11 @@ export function WarmupGate({ sessionId, onUnlock }: WarmupGateProps) {
       return newSet;
     });
     
-    try {
-      await toggleWarmupItem(sessionId, warmupId, newState);
-    } catch (error) {
+    // FIRE-AND-FORGET: Sync to server in background
+    toggleWarmupItem(sessionId, warmupId, newState).catch((error) => {
       console.error("Failed to toggle warmup item:", error);
       
-      // Rollback on error
+      // ROLLBACK on error
       setCompleted(prev => {
         const newSet = new Set(prev);
         if (newState) {
@@ -74,26 +100,34 @@ export function WarmupGate({ sessionId, onUnlock }: WarmupGateProps) {
         return newSet;
       });
       
-      toast.error("Failed to update warmup. Please try again.");
-    }
+      toast.error("Failed to save. Please try again.");
+    });
   };
 
-  const handleUnlock = async () => {
-    setUnlocking(true);
-    try {
-      const isComplete = await isWarmupComplete(sessionId);
-      if (isComplete) {
-        // Mark warmup as complete on the session
-        await markWarmupComplete(sessionId);
-        setTimeout(() => onUnlock(), 500);
-      } else {
-        toast.warning("Complete all warmup items first!");
-      }
-    } catch (error) {
-      console.error("Failed to check warmup status:", error);
-    } finally {
-      setUnlocking(false);
+  const handleUnlock = () => {
+    // Check locally - no need for server check!
+    // We already know which items are completed from local state
+    const allChecked = warmups.every(w => completed.has(w.id));
+    
+    if (!allChecked) {
+      toast.warning("Complete all warmup items first!");
+      return;
     }
+
+    setUnlocking(true);
+    
+    // OPTIMISTIC: Transition immediately
+    // The parent will handle the stage change
+    setTimeout(() => onUnlock(), 300);
+    
+    // FIRE-AND-FORGET: Mark complete in background
+    // We don't need to wait for this - if it fails, the session just
+    // won't have warmupCompleted=true, but user is already in the workout
+    markWarmupComplete(sessionId).catch((error) => {
+      console.error("Failed to mark warmup complete:", error);
+      // Don't show error - user is already in workout
+      // Session will still work, just warmupCompleted flag won't be set
+    });
   };
 
   if (loading) {
@@ -176,7 +210,7 @@ export function WarmupGate({ sessionId, onUnlock }: WarmupGateProps) {
         ))}
       </div>
 
-      {/* Start Button - Always visible, changes state */}
+      {/* Start Button */}
       <motion.button
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -195,7 +229,7 @@ export function WarmupGate({ sessionId, onUnlock }: WarmupGateProps) {
         {unlocking ? (
           <>
             <Loader2 className="animate-spin" size={18} />
-            Unlocking...
+            Starting...
           </>
         ) : (
           <>

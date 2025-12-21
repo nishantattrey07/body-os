@@ -6,8 +6,8 @@ import { MacroGauge } from "@/components/dashboard/MacroGauge";
 import { MorningCheckIn } from "@/components/dashboard/MorningCheckIn";
 import { StatusIndicator } from "@/components/dashboard/StatusIndicator";
 import { WaterTracker } from "@/components/dashboard/WaterTracker";
-import { useDailyLog } from "@/hooks/queries/useDailyLog";
-import { useUserSettings } from "@/hooks/queries/useUserSettings";
+import { DailyLog, useDailyLog } from "@/hooks/queries/useDailyLog";
+import { UserSettings, useUserSettings } from "@/hooks/queries/useUserSettings";
 import { isPastDayCutoff } from "@/lib/date-utils";
 import { useNavigation } from "@/providers/NavigationProvider";
 import { AnimatePresence, motion } from "framer-motion";
@@ -15,13 +15,24 @@ import { Dumbbell, Settings, TrendingUp, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export function DashboardClient() {
+interface DashboardClientProps {
+  initialDailyLog?: DailyLog | null;
+  initialSettings?: UserSettings;
+}
+
+/**
+ * DashboardClient - Client Component for dashboard
+ * 
+ * Receives initial data from Server Component.
+ * Uses React Query hooks with initialData for instant render.
+ */
+export function DashboardClient({ initialDailyLog, initialSettings }: DashboardClientProps) {
   const router = useRouter();
   const { navigateTo } = useNavigation();
   
-  // React Query hooks - automatic refetch on window focus!
-  const { data: dailyLog, isLoading: logLoading, refetch: refetchLog } = useDailyLog();
-  const { data: settings, isLoading: settingsLoading } = useUserSettings();
+  // React Query hooks - with initialData from server!
+  const { data: dailyLog, isLoading: logLoading, refetch: refetchLog } = useDailyLog(initialDailyLog);
+  const { data: settings, isLoading: settingsLoading } = useUserSettings(initialSettings);
 
   // Derived values with defaults
   const cutoffHour = settings?.dayCutoffHour ?? 5;
@@ -37,18 +48,19 @@ export function DashboardClient() {
   
   // Initialize check-in state once data is loaded
   useEffect(() => {
-    if (!logLoading && needsCheckIn === null) {
+    // With initialData, we can compute this immediately
+    if (needsCheckIn === null && (initialDailyLog !== undefined || !logLoading)) {
       setNeedsCheckIn(!hasCompletedCheckIn && isPastCutoff);
     }
-  }, [logLoading, hasCompletedCheckIn, isPastCutoff, needsCheckIn]);
+  }, [logLoading, hasCompletedCheckIn, isPastCutoff, needsCheckIn, initialDailyLog]);
 
   const handleCheckInComplete = async () => {
     setNeedsCheckIn(false);
     await refetchLog();
   };
 
-  // Loading state - with premium skeleton
-  if (logLoading || settingsLoading || needsCheckIn === null) {
+  // Loading state - only if no initial data was provided
+  if ((logLoading && !initialDailyLog) || (settingsLoading && !initialSettings) || needsCheckIn === null) {
     return <DashboardSkeleton />;
   }
 

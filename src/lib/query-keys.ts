@@ -10,6 +10,12 @@ export const queryKeys = {
 
     // Inventory items - singleton query
     inventory: ['inventory'] as const,
+
+    // Workout queries
+    activeSession: ['active-session'] as const,
+    routines: (params?: { search?: string; filter?: string }) =>
+        ['routines', params ?? {}] as const,
+    warmupChecklist: ['warmup-checklist'] as const,
 } as const;
 
 // Type helpers for invalidation

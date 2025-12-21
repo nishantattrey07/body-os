@@ -95,62 +95,74 @@ export async function startWorkoutSession(data: {
 
     if (!routine) throw new Error("Routine not found");
 
-    // Create the session with all exercises
-    const workoutSession = await prisma.workoutSession.create({
-        data: {
-            userId: session.user.id,
-            routineId: data.routineId,
+    // Create the session with all exercises and prefetch warmup data
+    const [workoutSession, warmupChecklist] = await Promise.all([
+        prisma.workoutSession.create({
+            data: {
+                userId: session.user.id,
+                routineId: data.routineId,
 
-            // Calendar fields
-            date: now,
-            dayOfWeek,
-            weekOfYear,
-            month: now.getMonth() + 1, // 1-12
-            year: now.getFullYear(),
-            timeOfDay,
+                // Calendar fields
+                date: now,
+                dayOfWeek,
+                weekOfYear,
+                month: now.getMonth() + 1, // 1-12
+                year: now.getFullYear(),
+                timeOfDay,
 
-            // Pre-workout context
-            preWorkoutEnergy: data.preWorkoutEnergy,
-            sleepLastNight: data.sleepLastNight,
-            sleepQuality: data.sleepQuality,
-            stressLevel: data.stressLevel,
-            soreness: data.soreness,
-            fastedWorkout: data.fastedWorkout ?? false,
-            caffeineIntake: data.caffeineIntake,
+                // Pre-workout context
+                preWorkoutEnergy: data.preWorkoutEnergy,
+                sleepLastNight: data.sleepLastNight,
+                sleepQuality: data.sleepQuality,
+                stressLevel: data.stressLevel,
+                soreness: data.soreness,
+                fastedWorkout: data.fastedWorkout ?? false,
+                caffeineIntake: data.caffeineIntake,
 
-            // Environment & Periodization
-            environment: data.environment,
-            trainingPhase: data.trainingPhase,
-            programName: data.programName,
-            mesocycleWeek: data.mesocycleWeek,
+                // Environment & Periodization
+                environment: data.environment,
+                trainingPhase: data.trainingPhase,
+                programName: data.programName,
+                mesocycleWeek: data.mesocycleWeek,
 
-            // Create session exercises from routine (copy config!)
-            exercises: {
-                create: routine.exercises.map((re) => ({
-                    order: re.order,
-                    exerciseId: re.exercise.id,
-                    targetSets: re.sets,
-                    targetReps: re.reps,
-                    targetDuration: re.duration, // For time-based exercises
-                    restSeconds: re.restSeconds,
-                })),
-            },
-        },
-        include: {
-            routine: true,
-            exercises: {
-                include: {
-                    exercise: {
-                        include: { swapExercise: true },
-                    },
-                    sets: true,
+                // Create session exercises from routine (copy config!)
+                exercises: {
+                    create: routine.exercises.map((re) => ({
+                        order: re.order,
+                        exerciseId: re.exercise.id,
+                        targetSets: re.sets,
+                        targetReps: re.reps,
+                        targetDuration: re.duration, // For time-based exercises
+                        restSeconds: re.restSeconds,
+                    })),
                 },
-                orderBy: { order: 'asc' },
             },
-        },
-    });
+            include: {
+                routine: true,
+                exercises: {
+                    include: {
+                        exercise: {
+                            include: { swapExercise: true },
+                        },
+                        sets: true,
+                    },
+                    orderBy: { order: 'asc' },
+                },
+            },
+        }),
+        // Prefetch warmup checklist to avoid fetching on component mount
+        prisma.warmupChecklist.findMany({
+            orderBy: { order: 'asc' },
+        }),
+    ]);
 
-    return workoutSession;
+    return {
+        session: workoutSession,
+        warmupData: {
+            checklist: warmupChecklist,
+            progress: [], // Empty array for new session
+        },
+    };
 }
 
 /**
