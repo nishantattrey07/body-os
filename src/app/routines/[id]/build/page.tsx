@@ -3,10 +3,8 @@
 
 import { getExercises } from "@/app/actions/exercises";
 import {
-    addExerciseToRoutine,
-    batchUpdateRoutineExercises,
     getRoutineById,
-    removeExerciseFromRoutine
+    saveRoutineConfiguration
 } from "@/app/actions/routines";
 import { motion, Reorder } from "framer-motion";
 import { ArrowLeft, GripVertical, Plus, Save, Search, Trash2 } from "lucide-react";
@@ -79,22 +77,25 @@ export default function RoutineBuilderPage() {
     };
 
     const handleSave = async () => {
-        if (!isDirty) return;
+        if (!isDirty && localExercises.length > 0) return; // Allow save if empty to clear
         setIsSaving(true);
         try {
-            await batchUpdateRoutineExercises(
+            await saveRoutineConfiguration(
                 routineId,
                 localExercises.map((e, idx) => ({
                     id: e.id,
+                    exerciseId: e.exercise.id,
                     order: idx + 1,
                     sets: e.sets,
                     reps: e.reps,
+                    duration: e.duration,
                     restSeconds: e.restSeconds,
                 }))
             );
-            await loadData(); // Reload to get fresh state
+            toast.success("Routine saved successfully");
+            await loadData(); // Reload to get fresh state (real IDs replacing temp IDs)
         } catch (error) {
-            alert("Failed to save changes");
+            toast.error("Failed to save changes");
         } finally {
             setIsSaving(false);
         }
@@ -105,28 +106,25 @@ export default function RoutineBuilderPage() {
         setIsDirty(true);
     };
 
-    const handleAddExercise = async (exercise: Exercise) => {
-        try {
-            // Immediate server action for adding (easier than optimistic for new IDs)
-            await addExerciseToRoutine(routineId, exercise.id, {
-                sets: exercise.defaultSets,
-                reps: exercise.defaultReps,
-                restSeconds: 90,
-            });
-            await loadData(); // Reloads everything
-            setShowExercisePicker(false);
-        } catch (error) {
-            alert("Failed to add exercise");
-        }
+    const handleAddExercise = (exercise: Exercise) => {
+        const newExercise: RoutineExercise = {
+            id: `temp-${Date.now()}`, // Temporary ID
+            order: localExercises.length + 1,
+            sets: exercise.defaultSets,
+            reps: exercise.trackingType === "seconds" ? null : (exercise.defaultReps || 10),
+            duration: exercise.trackingType === "seconds" ? (exercise.defaultDuration || 60) : null,
+            restSeconds: 90,
+            exercise: exercise
+        };
+        
+        setLocalExercises([...localExercises, newExercise]);
+        setIsDirty(true);
+        setShowExercisePicker(false);
     };
 
-    const handleRemoveExercise = async (routineExerciseId: string) => {
-        try {
-            await removeExerciseFromRoutine(routineExerciseId);
-            await loadData();
-        } catch (error) {
-             alert("Failed to remove exercise");
-        }
+    const handleRemoveExercise = (routineExerciseId: string) => {
+        setLocalExercises(localExercises.filter(e => e.id !== routineExerciseId));
+        setIsDirty(true);
     };
 
     const handleUpdateConfig = (

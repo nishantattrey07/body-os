@@ -519,3 +519,93 @@ export async function batchUpdateRoutineExercises(
         throw error;
     }
 }
+
+/**
+ * Save complete routine configuration (exercises, order, settings) in one transaction
+ */
+export async function saveRoutineConfiguration(
+    routineId: string,
+    exercises: {
+        id?: string; // Optional for new exercises
+        exerciseId: string;
+        order: number;
+        sets: number;
+        reps?: number | null;
+        duration?: number | null;
+        restSeconds: number;
+    }[]
+) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            throw new Error("Unauthorized");
+        }
+
+        // Verify ownership
+        const routine = await prisma.workoutRoutine.findUnique({
+            where: { id: routineId },
+            include: { exercises: true },
+        });
+
+        if (!routine) {
+            throw new Error("Routine not found");
+        }
+
+        if (routine.isSystem || routine.userId !== session.user.id) {
+            throw new Error("Cannot modify this routine");
+        }
+
+        // Identify operations
+        const incomingIds = new Set(exercises.map(e => e.id).filter(Boolean));
+        const existingIds = routine.exercises.map(e => e.id);
+
+        // IDs to delete (exist in DB but not in incoming list)
+        // Only consider IDs that look like legitimate DB IDs (not starting with temp-)
+        const toDeleteIds = existingIds.filter(id => !incomingIds.has(id));
+
+        // Perform transaction
+        await prisma.$transaction(async (tx) => {
+            // 1. Delete removed exercises
+            if (toDeleteIds.length > 0) {
+                await tx.routineExercise.deleteMany({
+                    where: { id: { in: toDeleteIds } },
+                });
+            }
+
+            // 2. Upsert (Create or Update) incoming exercises
+            for (const item of exercises) {
+                // If it has an ID and it's NOT a temp ID, update it
+                if (item.id && !item.id.startsWith("temp-")) {
+                    await tx.routineExercise.update({
+                        where: { id: item.id },
+                        data: {
+                            order: item.order,
+                            sets: item.sets,
+                            reps: item.reps ?? null,
+                            duration: item.duration ?? null,
+                            restSeconds: item.restSeconds,
+                        },
+                    });
+                } else {
+                    // Create new (missing ID or temp ID)
+                    await tx.routineExercise.create({
+                        data: {
+                            routineId,
+                            exerciseId: item.exerciseId,
+                            order: item.order,
+                            sets: item.sets,
+                            reps: item.reps ?? null,
+                            duration: item.duration ?? null,
+                            restSeconds: item.restSeconds,
+                        },
+                    });
+                }
+            }
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error("Failed to save routine configuration:", error);
+        throw error;
+    }
+}
