@@ -1,8 +1,10 @@
 "use client";
 
 import { getUserSettings, updateUserSettings } from "@/app/actions/settings";
+import { SettingsSkeleton } from "@/components/settings/SettingsSkeleton";
 import { BigButton } from "@/components/ui/BigButton";
-import { ArrowLeft, LogOut } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Check, Droplets, Flame, LogOut, LucideIcon, Utensils } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -41,7 +43,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await updateUserSettings(targets);
-      toast.success("Settings saved!");
+      toast.success("Settings updated successfully!");
       router.back();
     } catch (error) {
       console.error("Failed to save settings:", error);
@@ -52,175 +54,243 @@ export default function SettingsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
+    return <SettingsSkeleton />;
   }
 
   return (
-    <div className="min-h-screen bg-background p-6 max-w-md mx-auto flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
-        <button 
-          onClick={() => router.back()}
-          className="p-2 rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors"
-        >
-          <ArrowLeft className="text-zinc-600" />
-        </button>
-        <h1 className="text-3xl font-bold uppercase tracking-tighter text-foreground font-heading">
-          Daily Targets
-        </h1>
-      </div>
+    <div className="min-h-screen bg-background pb-12">
+      {/* Header with Glass Effect */}
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-white/10 mb-8">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-4">
+          <button 
+            onClick={() => router.back()}
+            className="p-3 rounded-full bg-white hover:bg-zinc-100 shadow-sm transition-all active:scale-95 group"
+          >
+            <ArrowLeft className="w-6 h-6 text-zinc-600 group-hover:text-primary transition-colors" />
+          </button>
+          <h1 className="text-4xl font-bold uppercase tracking-tighter text-foreground font-heading">
+            System Settings
+          </h1>
+        </div>
+      </header>
 
-      <div className="space-y-6 flex-1">
-        {/* Protein Target */}
-        <TargetInput
-          label="Protein"
-          unit="g"
-          value={targets.proteinTarget}
-          onChange={(v) => setTargets({ ...targets, proteinTarget: v })}
-          color="bg-green-100 border-green-300"
-        />
-
-        {/* Carbs Target */}
-        <TargetInput
-          label="Carbs"
-          unit="g"
-          value={targets.carbsTarget}
-          onChange={(v) => setTargets({ ...targets, carbsTarget: v })}
-          color="bg-blue-100 border-blue-300"
-        />
-
-        {/* Fats Target */}
-        <TargetInput
-          label="Fats"
-          unit="g"
-          value={targets.fatsTarget}
-          onChange={(v) => setTargets({ ...targets, fatsTarget: v })}
-          color="bg-amber-100 border-amber-300"
-        />
-
-        {/* Calories Target */}
-        <TargetInput
-          label="Calories"
-          unit="kcal"
-          value={targets.caloriesTarget}
-          onChange={(v) => setTargets({ ...targets, caloriesTarget: v })}
-          color="bg-red-100 border-red-300"
-        />
-
-        {/* Water Target */}
-        <TargetInput
-          label="Water"
-          unit="ml"
-          value={targets.waterTarget}
-          onChange={(v) => setTargets({ ...targets, waterTarget: v })}
-          color="bg-cyan-100 border-cyan-300"
-        />
-
-        {/* Day Start Time */}
-        <div className="rounded-3xl p-6 border-2 bg-purple-100 border-purple-300">
-          <label className="text-sm font-bold text-zinc-700 uppercase tracking-wider mb-2 block">
-            Day Start Time
-          </label>
-          <p className="text-xs text-zinc-600 mb-4">
-            Activities before this time are logged to the previous day
-          </p>
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1 block">
-                Hour
-              </label>
-              <input
-                type="number"
-                value={targets.dayCutoffHour}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  if (val >= 0 && val <= 23) {
-                    setTargets({ ...targets, dayCutoffHour: val });
-                  }
-                }}
-                className="w-full text-3xl font-bold font-heading text-foreground bg-white/50 rounded-xl px-4 py-2 border-none outline-none"
-                min="0"
-                max="23"
-                step="1"
+      <div className="max-w-5xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Main Content Area */}
+        <div className="lg:col-span-8 space-y-8">
+          
+          {/* Section: Nutritional Targets */}
+          <section>
+             <h2 className="text-xl font-bold uppercase tracking-wider text-zinc-400 mb-4 px-2">
+              Nutritional Targets
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <TargetCard
+                label="Protein"
+                unit="g"
+                value={targets.proteinTarget}
+                onChange={(v) => setTargets({ ...targets, proteinTarget: v })}
+                icon={Utensils}
+                colorClass="text-green-600"
+                bgClass="bg-green-50/50 hover:bg-green-50"
+                ringClass="focus-within:ring-green-500/20"
+              />
+              <TargetCard
+                label="Daily Calories"
+                unit="kcal"
+                value={targets.caloriesTarget}
+                onChange={(v) => setTargets({ ...targets, caloriesTarget: v })}
+                icon={Flame}
+                colorClass="text-red-600"
+                bgClass="bg-red-50/50 hover:bg-red-50"
+                ringClass="focus-within:ring-red-500/20"
+                step={50}
+              />
+              <TargetCard
+                label="Carbohydrates"
+                unit="g"
+                value={targets.carbsTarget}
+                onChange={(v) => setTargets({ ...targets, carbsTarget: v })}
+                icon={Utensils}
+                colorClass="text-blue-600"
+                bgClass="bg-blue-50/50 hover:bg-blue-50"
+                ringClass="focus-within:ring-blue-500/20"
+              />
+              <TargetCard
+                label="Fats"
+                unit="g"
+                value={targets.fatsTarget}
+                onChange={(v) => setTargets({ ...targets, fatsTarget: v })}
+                icon={Utensils}
+                colorClass="text-amber-600"
+                bgClass="bg-amber-50/50 hover:bg-amber-50"
+                ringClass="focus-within:ring-amber-500/20"
+              />
+               <TargetCard
+                label="Water Intake"
+                unit="ml"
+                value={targets.waterTarget}
+                onChange={(v) => setTargets({ ...targets, waterTarget: v })}
+                icon={Droplets}
+                colorClass="text-cyan-600"
+                bgClass="bg-cyan-50/50 hover:bg-cyan-50"
+                ringClass="focus-within:ring-cyan-500/20"
+                step={250}
+                className="md:col-span-2"
               />
             </div>
-            <span className="text-3xl font-bold text-zinc-400 mt-6">:</span>
-            <div className="flex-1">
-              <label className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1 block">
-                Minute
-              </label>
-              <input
-                type="number"
-                value={targets.dayCutoffMinute}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value) || 0;
-                  if (val >= 0 && val <= 59) {
-                    setTargets({ ...targets, dayCutoffMinute: val });
-                  }
-                }}
-                className="w-full text-3xl font-bold font-heading text-foreground bg-white/50 rounded-xl px-4 py-2 border-none outline-none"
-                min="0"
-                max="59"
-                step="1"
-              />
+          </section>
+
+          {/* Section: System Configuration */}
+           <section>
+             <h2 className="text-xl font-bold uppercase tracking-wider text-zinc-400 mb-4 px-2">
+              System Configuration
+            </h2>
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-100">
+               <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-6">
+                 <div>
+                    <h3 className="text-2xl font-bold font-heading uppercase text-zinc-800">
+                      Day Reset Time
+                    </h3>
+                    <p className="text-zinc-500 text-sm max-w-sm mt-1">
+                      Determine when your daily tracking resets. Late-night logs before this time count towards the previous day.
+                    </p>
+                 </div>
+                 <div className="flex items-center gap-2 bg-zinc-50 rounded-2xl p-2 border border-zinc-100">
+                    <TimeInput 
+                      value={targets.dayCutoffHour}
+                      max={23}
+                      onChange={(v) => setTargets({ ...targets, dayCutoffHour: v })}
+                    />
+                    <span className="text-2xl font-bold text-zinc-300 px-1">:</span>
+                    <TimeInput 
+                      value={targets.dayCutoffMinute}
+                      max={59}
+                      onChange={(v) => setTargets({ ...targets, dayCutoffMinute: v })}
+                    />
+                 </div>
+               </div>
+               <div className="flex items-center gap-2 text-sm text-purple-600 bg-purple-50 px-4 py-2 rounded-xl inline-flex">
+                  <Check className="w-4 h-4" />
+                  <span className="font-medium">Recommended: 05:30 (Circadian Alignment)</span>
+               </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Sidebar Actions */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="bg-white rounded-3xl p-6 shadow-sm border border-zinc-100 sticky top-32">
+             <h2 className="text-lg font-bold uppercase tracking-wider text-zinc-400 mb-6">
+              Actions
+            </h2>
+            
+            <BigButton 
+              onClick={handleSave} 
+              disabled={saving} 
+              className="w-full mb-4 text-2xl py-6"
+            >
+              {saving ? (
+                <span className="flex items-center gap-2">
+                  <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
+                  Saving...
+                </span>
+              ) : "Save Changes"}
+            </BigButton>
+
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="w-full py-4 px-6 rounded-2xl bg-zinc-50 text-zinc-600 font-bold text-lg uppercase tracking-wide flex items-center justify-center gap-2 hover:bg-red-50 hover:text-red-600 hover:shadow-inner transition-all group"
+            >
+              <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              Sign Out
+            </button>
+            
+            <div className="mt-8 pt-6 border-t border-zinc-100 text-center">
+              <p className="text-xs text-zinc-400 font-medium uppercase tracking-widest">
+                Body OS v1.2.0
+              </p>
             </div>
           </div>
-          <p className="text-xs text-zinc-500 mt-3">
-            💡 Recommended: <strong>5:30 AM</strong> (aligns with circadian rhythm)
-          </p>
         </div>
       </div>
-
-      {/* Save Button */}
-      <BigButton onClick={handleSave} disabled={saving} className="mt-8">
-        {saving ? "Saving..." : "Save Targets"}
-      </BigButton>
-
-      {/* Logout Button */}
-      <button
-        onClick={() => signOut({ callbackUrl: "/login" })}
-        className="w-full mt-4 mb-8 py-4 rounded-2xl bg-zinc-100 text-zinc-700 font-bold text-lg flex items-center justify-center gap-2 hover:bg-zinc-200 transition-colors"
-      >
-        <LogOut className="w-5 h-5" />
-        Logout
-      </button>
     </div>
   );
 }
 
-function TargetInput({
+function TargetCard({
   label,
   unit,
   value,
   onChange,
-  color,
+  icon: Icon,
+  colorClass,
+  bgClass,
+  ringClass,
+  step = 10,
+  className,
 }: {
   label: string;
   unit: string;
   value: number;
   onChange: (value: number) => void;
-  color: string;
+  icon: LucideIcon;
+  colorClass: string;
+  bgClass: string;
+  ringClass: string;
+  step?: number;
+  className?: string;
 }) {
   return (
-    <div className={`rounded-3xl p-6 border-2 ${color}`}>
-      <label className="text-sm font-bold text-zinc-700 uppercase tracking-wider mb-3 block">
-        {label} Target
+    <motion.div 
+      whileHover={{ scale: 1.01 }}
+      className={`relative group rounded-3xl p-5 border border-transparent transition-all duration-300 ${bgClass} ${className}`}
+    >
+      <div className={`absolute top-5 right-5 p-2 rounded-xl bg-white/60 backdrop-blur-sm ${colorClass}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      
+      <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1 block">
+        {label}
       </label>
-      <div className="flex items-center gap-3">
+      
+      <div className={`flex items-baseline gap-1 relative z-10 p-2 -ml-2 rounded-xl transition-all ring-2 ring-transparent ${ringClass}`}>
         <input
           type="number"
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-          className="flex-1 text-4xl font-bold font-heading text-foreground bg-transparent border-none outline-none"
+          className="w-full text-5xl font-bold font-heading text-foreground bg-transparent border-none outline-none p-0 m-0 leading-none"
           min="0"
-          step={unit === "kcal" ? "100" : "10"}
+          step={step}
         />
-        <span className="text-2xl font-bold text-zinc-400">{unit}</span>
+        <span className="text-lg font-bold text-zinc-400 font-heading tracking-wide mb-1">{unit}</span>
       </div>
-    </div>
+    </motion.div>
   );
 }
+
+function TimeInput({ value, max, onChange }: { value: number, max: number, onChange: (val: number) => void }) {
+  return (
+    <div className="relative group">
+      <input
+        type="number"
+        value={value.toString().padStart(2, '0')}
+        onChange={(e) => {
+          const val = parseInt(e.target.value);
+          if (!isNaN(val) && val >= 0 && val <= max) {
+            onChange(val);
+          }
+        }}
+        onBlur={(e) => {
+             // Ensure double digits on blur for aesthetics
+             const val = parseInt(e.target.value) || 0;
+             e.target.value = val.toString().padStart(2, '0');
+        }}
+        className="w-20 text-center text-4xl font-bold font-heading text-zinc-700 bg-white rounded-xl py-3 border-2 border-transparent hover:border-zinc-200 focus:border-primary focus:text-primary outline-none transition-all"
+        min="0"
+        max={max}
+      />
+      <div className="absolute inset-0 rounded-xl shadow-inner pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+    </div>
+  )
+}
+

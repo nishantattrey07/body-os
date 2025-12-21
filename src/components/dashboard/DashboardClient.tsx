@@ -1,6 +1,7 @@
 "use client";
 
 import { ActionCard } from "@/components/dashboard/ActionCard";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { MacroGauge } from "@/components/dashboard/MacroGauge";
 import { MorningCheckIn } from "@/components/dashboard/MorningCheckIn";
 import { StatusIndicator } from "@/components/dashboard/StatusIndicator";
@@ -10,7 +11,7 @@ import { useUserSettings } from "@/hooks/queries/useUserSettings";
 import { isPastDayCutoff } from "@/lib/date-utils";
 import { useNavigation } from "@/providers/NavigationProvider";
 import { AnimatePresence, motion } from "framer-motion";
-import { Dumbbell, Loader2, Settings, TrendingUp, Utensils } from "lucide-react";
+import { Dumbbell, Settings, TrendingUp, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -46,16 +47,9 @@ export function DashboardClient() {
     await refetchLog();
   };
 
-  // Loading state - with premium gradient
+  // Loading state - with premium skeleton
   if (logLoading || settingsLoading || needsCheckIn === null) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50/50 to-white">
-        <div className="relative">
-          <div className="absolute inset-0 blur-xl bg-gradient-to-r from-orange-200 to-amber-200 opacity-50 animate-pulse" />
-          <Loader2 className="animate-spin text-orange-400 w-12 h-12 relative z-10" />
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   // Calculate status - Time-aware thresholds
