@@ -8,6 +8,7 @@ import { useNavigation } from "@/providers/NavigationProvider";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Dumbbell, Loader2, Plus, Search, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 interface Routine {
@@ -36,7 +37,8 @@ interface RoutinesClientProps {
  * - No loading skeleton when data is cached
  */
 export function RoutinesClient({ initialRoutines, initialCursor, initialHasMore }: RoutinesClientProps) {
-    const { navigateTo, navigateBack } = useNavigation();
+    const router = useRouter();
+    const { navigateBack } = useNavigation();
     const queryClient = useQueryClient();
     
     // Search & Filter State
@@ -155,10 +157,6 @@ export function RoutinesClient({ initialRoutines, initialCursor, initialHasMore 
         } catch (error) {
             alert("Failed to delete routine");
         }
-    };
-
-    const handleBuildRoutine = (routineId: string) => {
-        navigateTo(`/routines/${routineId}/build`);
     };
 
     const filterLabels: Record<FilterType, string> = {
@@ -283,7 +281,6 @@ export function RoutinesClient({ initialRoutines, initialCursor, initialHasMore 
                                     routine={routine}
                                     onEdit={() => handleEdit(routine)}
                                     onDelete={() => handleDelete(routine.id)}
-                                    onBuild={() => handleBuildRoutine(routine.id)}
                                 />
                             ))}
                         </div>

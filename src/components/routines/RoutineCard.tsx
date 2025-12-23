@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { ChevronDown, ChevronUp, Edit2, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 interface RoutineExercise {
@@ -29,10 +30,9 @@ interface RoutineCardProps {
     };
     onEdit?: () => void;
     onDelete?: () => void;
-    onBuild?: () => void; // Navigate to builder page
 }
 
-export function RoutineCard({ routine, onEdit, onDelete, onBuild }: RoutineCardProps) {
+export function RoutineCard({ routine, onEdit, onDelete }: RoutineCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
@@ -109,16 +109,13 @@ export function RoutineCard({ routine, onEdit, onDelete, onBuild }: RoutineCardP
             {/* Actions */}
             {!routine.isSystem && (
                 <div className="flex gap-2 p-4 border-t border-zinc-100">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onBuild?.();
-                        }}
+                    <Link
+                        href={`/routines/${routine.id}/build`}
                         className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-blue-50 text-blue-700 rounded-xl font-semibold text-sm hover:bg-blue-100 transition-colors"
                     >
                         <Edit2 size={14} />
                         Edit
-                    </button>
+                    </Link>
                     <button
                         onClick={(e) => {
                             e.stopPropagation();

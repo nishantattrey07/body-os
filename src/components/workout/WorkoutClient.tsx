@@ -19,6 +19,8 @@ import { useRoutinesStore } from "@/store/routines-store";
 import { useWorkoutUIStore } from "@/store/workout-ui-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Dumbbell, Search, X } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type FilterType = "all" | "system" | "user";
@@ -30,6 +32,7 @@ type FilterType = "all" | "system" | "user";
  * Background syncs active session with server.
  */
 export function WorkoutClient() {
+  const router = useRouter();
   const { navigateTo, navigateBack } = useNavigation();
   
   // Zustand store for routines (instant from localStorage)
@@ -230,10 +233,10 @@ export function WorkoutClient() {
       }
       reset();
       setActiveSession(null);
-      navigateTo('/');
+      router.push('/');
     } catch (error) {
       console.error("Failed to complete session:", error);
-      navigateTo('/');
+      router.push('/');
     }
   };
 
@@ -444,20 +447,20 @@ export function WorkoutClient() {
 
             {/* Management Links */}
             <div className="flex gap-4 px-6 py-2">
-              <button
-                onClick={() => navigateTo('/routines')}
+              <Link
+                href="/routines"
                 className="flex-1 py-3 px-4 bg-orange-100 text-orange-700 rounded-2xl font-bold text-sm hover:bg-orange-200 transition-colors flex items-center justify-center gap-2"
               >
                 <Dumbbell size={18} />
                 Manage Routines
-              </button>
-              <button
-                onClick={() => navigateTo('/exercises')}
+              </Link>
+              <Link
+                href="/exercises"
                 className="flex-1 py-3 px-4 bg-zinc-100 text-zinc-700 rounded-2xl font-bold text-sm hover:bg-zinc-200 transition-colors flex items-center justify-center gap-2"
               >
                 <Dumbbell size={18} />
                 Exercise Library
-              </button>
+              </Link>
             </div>
 
             {/* Orange gradient - only visible when scrolled */}
@@ -499,12 +502,12 @@ export function WorkoutClient() {
                     {search ? "No routines match your search" : "No routines available"}
                   </p>
                   {!search && (
-                    <button
-                      onClick={() => navigateTo('/routines')}
-                      className="px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors"
+                    <Link
+                      href="/routines"
+                      className="px-6 py-3 bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors inline-block"
                     >
                       Create a Routine
-                    </button>
+                    </Link>
                   )}
                 </div>
               ) : (

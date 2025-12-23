@@ -4,7 +4,7 @@ import { getRoutinesPaginated } from '@/app/actions/routines';
 import { useDailyLogStore } from '@/store/daily-log-store';
 import { useExercisesStore } from '@/store/exercises-store';
 import { useRoutinesStore } from '@/store/routines-store';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 /**
  * Background Sync Hook - Non-blocking server synchronization
@@ -46,52 +46,52 @@ export function useBackgroundSync() {
     // Check if initial sync is needed
     const isFirstTimeUser = routinesSync === 0 && exercisesSync === 0;
 
-    useEffect(() => {
-        // Function to sync all data from server
-        async function syncAllData() {
-            try {
-                setSyncState({
-                    status: 'syncing',
-                    progress: 0,
-                    error: null,
-                    lastSyncTime: Date.now(),
-                });
+    // Function to sync all data from server
+    const syncAllData = useCallback(async () => {
+        try {
+            setSyncState({
+                status: 'syncing',
+                progress: 0,
+                error: null,
+                lastSyncTime: Date.now(),
+            });
 
-                // Sync routines (33% progress)
-                const routinesResult = await getRoutinesPaginated({ limit: 200 });
-                setRoutines(routinesResult.items);
-                setSyncState(prev => ({ ...prev, progress: 33 }));
+            // Sync routines (33% progress)
+            const routinesResult = await getRoutinesPaginated({ limit: 200 });
+            setRoutines(routinesResult.items);
+            setSyncState(prev => ({ ...prev, progress: 33 }));
 
-                // Sync exercises (66% progress)
-                const exercisesResult = await getExercisesPaginated({ limit: 500 });
-                setExercises(exercisesResult.items);
-                setSyncState(prev => ({ ...prev, progress: 66 }));
+            // Sync exercises (66% progress)
+            const exercisesResult = await getExercisesPaginated({ limit: 500 });
+            setExercises(exercisesResult.items);
+            setSyncState(prev => ({ ...prev, progress: 66 }));
 
-                // Sync today's log (100% progress)
-                const today = new Date().toISOString().split('T')[0];
-                const todayLog = await getTodayLog();
-                if (todayLog) {
-                    setLog(today, todayLog);
-                }
-                setSyncState({
-                    status: 'complete',
-                    progress: 100,
-                    error: null,
-                    lastSyncTime: Date.now(),
-                });
-
-            } catch (error) {
-                console.error('[BackgroundSync] Sync failed:', error);
-                setSyncState({
-                    status: 'error',
-                    progress: 0,
-                    error: error instanceof Error ? error.message : 'Sync failed',
-                    lastSyncTime: Date.now(),
-                });
+            // Sync today's log (100% progress)
+            const today = new Date().toISOString().split('T')[0];
+            const todayLog = await getTodayLog();
+            if (todayLog) {
+                setLog(today, todayLog);
             }
-        }
+            setSyncState({
+                status: 'complete',
+                progress: 100,
+                error: null,
+                lastSyncTime: Date.now(),
+            });
 
-        // Initial sync on mount
+        } catch (error) {
+            console.error('[BackgroundSync] Sync failed:', error);
+            setSyncState({
+                status: 'error',
+                progress: 0,
+                error: error instanceof Error ? error.message : 'Sync failed',
+                lastSyncTime: Date.now(),
+            });
+        }
+    }, [setRoutines, setExercises, setLog]);
+
+    useEffect(() => {
+        // Initial sync on mount (THIS RUNS ON PAGE RELOAD!)
         if (isFirstTimeUser) {
             console.log('[BackgroundSync] First-time user detected, starting initial sync...');
             syncAllData();
@@ -111,16 +111,14 @@ export function useBackgroundSync() {
         return () => {
             clearInterval(syncInterval);
         };
-    }, []); // Only run on mount
+    }, [isFirstTimeUser, syncAllData]); // syncAllData is memoized
 
     return {
         syncState,
         isFirstTimeUser,
-        // Manual sync trigger (for pull-to-refresh, etc.)
-        triggerSync: async () => {
-            console.log('[BackgroundSync] Manual sync triggered');
-            // Implementation would be the same syncAllData function
-        },
+        // Manual sync trigger - allows components to force immediate sync
+        // Use case: "Pull to refresh" or "Sync now" button
+        triggerSync: syncAllData,
     };
 }
 

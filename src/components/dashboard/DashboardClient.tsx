@@ -9,10 +9,10 @@ import { WaterTracker } from "@/components/dashboard/WaterTracker";
 import { useDailyLog } from "@/hooks/queries/useDailyLog";
 import { useUserSettings } from "@/hooks/queries/useUserSettings";
 import { isPastDayCutoff } from "@/lib/date-utils";
-import { useNavigation } from "@/providers/NavigationProvider";
 import { useDailyLogStore } from "@/store/daily-log-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { Dumbbell, Settings, TrendingUp, Utensils } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -24,23 +24,18 @@ import { useEffect, useState } from "react";
  */
 export function DashboardClient() {
   const router = useRouter();
-  const { navigateTo } = useNavigation();
   
-  // Get cached daily log from Zustand store (instant from localStorage)
+  // Get today's date
   const today = new Date().toISOString().split('T')[0];
-  const { getLogByDate, setLog: setLogInStore } = useDailyLogStore();
-  const cachedLog = getLogByDate(today);
   
-  // React Query hooks - with initialData from Zustand cache!
+  // Subscribe to daily log from Zustand store (re-renders when store updates!)
+  const cachedLog = useDailyLogStore(state => state.logs[today]);
+  
+  // React Query hooks - with initialData from Zustand cache
   const { data: dailyLog, isLoading: logLoading, refetch: refetchLog } = useDailyLog(cachedLog);
   const { data: settings, isLoading: settingsLoading } = useUserSettings();
   
-  // Background sync: Update Zust and store when fresh data arrives
-  useEffect(() => {
-    if (dailyLog && dailyLog.id) {
-      setLogInStore(today, dailyLog);
-    }
-  }, [dailyLog, today, setLogInStore]);
+  // No longer need manual sync - store subscription handles it automatically!
 
   // Derived values with defaults
   const cutoffHour = settings?.dayCutoffHour ?? 5;
@@ -163,14 +158,15 @@ export function DashboardClient() {
             className="flex-1 flex flex-col items-center w-full h-full relative z-10"
           >
             {/* Settings Button - Premium Glassmorphism - Fixed Top Right */}
-            <motion.button
-              onClick={() => navigateTo('/settings')}
-              whileHover={{ scale: 1.05, rotate: 15 }}
-              whileTap={{ scale: 0.95 }}
-              className="absolute top-4 right-0 p-3 rounded-2xl bg-white/60 backdrop-blur-md hover:bg-white/80 transition-all z-20 shadow-lg shadow-orange-100/50 border border-white/50"
-            >
-              <Settings size={20} className="text-zinc-600" />
-            </motion.button>
+            <Link href="/settings">
+              <motion.div
+                whileHover={{ scale: 1.05, rotate: 15 }}
+                whileTap={{ scale: 0.95 }}
+                className="absolute top-4 right-0 p-3 rounded-2xl bg-white/60 backdrop-blur-md hover:bg-white/80 transition-all z-20 shadow-lg shadow-orange-100/50 border border-white/50"
+              >
+                <Settings size={20} className="text-zinc-600" />
+              </motion.div>
+            </Link>
 
             {/* Header - Enhanced Typography */}
             <div className="w-full flex flex-col z-10 mb-6 mt-4">
@@ -279,7 +275,7 @@ export function DashboardClient() {
                 icon={Utensils}
                 color="text-orange-500"
                 bgColor="bg-gradient-to-br from-white/80 to-orange-50/50"
-                onClick={() => navigateTo("/nutrition")}
+                href="/nutrition"
                 className="h-40 backdrop-blur-sm border-orange-100/50"
               />
               
@@ -289,7 +285,7 @@ export function DashboardClient() {
                 icon={Dumbbell}
                 color="text-zinc-800"
                 bgColor="bg-gradient-to-br from-white/80 to-zinc-50/50"
-                onClick={() => navigateTo("/workout")}
+                href="/workout"
                 className="h-40 backdrop-blur-sm border-zinc-100/50"
               />
 
@@ -298,7 +294,7 @@ export function DashboardClient() {
                 sublabel="View Stats & Trends"
                 icon={TrendingUp}
                 color="text-blue-500"
-                onClick={() => navigateTo("/progress")}
+                href="/progress"
                 className="col-span-2 h-24 backdrop-blur-sm"
                 variant="wide"
                 bgColor="bg-gradient-to-r from-blue-50/70 to-cyan-50/50"
