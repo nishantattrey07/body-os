@@ -3,9 +3,10 @@
 import { completeExercise, logSet } from "@/app/actions/workout-session";
 import { BlockerPicker } from "@/components/blockers/BlockerPicker";
 import { TimerModal } from "@/components/workout/TimerModal";
+import { markSetSynced, persistPendingSet } from "@/lib/workout-persistence";
 import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, Check, CheckCircle, Loader2, Minus, Plus, Timer } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 interface ExerciseLoggerProps {
@@ -31,6 +32,7 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
   const [swapSuggestion, setSwapSuggestion] = useState<any>(null);
   const [currentSet, setCurrentSet] = useState(1);
   const [showTimer, setShowTimer] = useState(false);
+  const pendingSetIdRef = useRef<string | null>(null); // Track pending set ID for sync confirmation
   const totalSets = exercise.defaultSets || 3;
 
   const handleLogSet = async () => {
@@ -47,6 +49,22 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
     const previousSet = currentSet;
     const isLastSet = currentSet >= totalSets;
     
+    // CRASH-PROOF: Save to localStorage FIRST (before server sync)
+    // This ensures data survives even if phone dies, app crashes, or WiFi drops
+    if (sessionExerciseId) {
+      pendingSetIdRef.current = persistPendingSet({
+        sessionExerciseId,
+        setNumber: previousSet,
+        targetReps: isTimeBased ? undefined : (exercise.defaultReps || 10),
+        actualReps: isTimeBased ? undefined : value,
+        targetDuration: isTimeBased ? (exercise.defaultDuration || 60) : undefined,
+        actualSeconds: isTimeBased ? value : undefined,
+        painLevel: painLevel,
+        restTaken: actualRestTaken,
+        aggravatedBlockerId: selectedBlockerId || undefined,
+      });
+    }
+
     // OPTIMISTIC UPDATE: Update UI immediately
     if (!isLastSet) {
       setCurrentSet(prev => prev + 1);
@@ -86,6 +104,12 @@ export function ExerciseLogger({ exercise, sessionExerciseId, onComplete }: Exer
         restTaken: actualRestTaken,
         aggravatedBlockerId: selectedBlockerId || undefined,
       }).then(result => {
+        // SYNC CONFIRMED: Mark the localStorage entry as synced
+        if (pendingSetIdRef.current) {
+          markSetSynced(pendingSetIdRef.current);
+          pendingSetIdRef.current = null;
+        }
+
         if (result.swapSuggestion) {
           setSwapSuggestion(result.swapSuggestion);
           // Rollback the set increment since we need to show swap modal

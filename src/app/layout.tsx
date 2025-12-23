@@ -1,3 +1,4 @@
+import { BackgroundSyncProvider } from "@/providers/BackgroundSyncProvider";
 import { NavigationProvider } from "@/providers/NavigationProvider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { Analytics } from "@vercel/analytics/next";
@@ -36,11 +37,13 @@ export default function RootLayout({
         className={`${inter.variable} ${teko.variable} antialiased bg-background text-foreground overflow-x-hidden`}
       >
         <QueryProvider>
-          <NavigationProvider>
-            {children}
-            <Analytics />
-            <SpeedInsights />
-          </NavigationProvider>
+          <BackgroundSyncProvider>
+            <NavigationProvider>
+              {children}
+              <Analytics />
+              <SpeedInsights />
+            </NavigationProvider>
+          </BackgroundSyncProvider>
         </QueryProvider>
         <Toaster 
           position="top-center" 

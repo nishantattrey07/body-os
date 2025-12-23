@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 /**
  * Workout UI Store
@@ -11,6 +12,9 @@ import { create } from 'zustand';
  * - UI element states (modals, selections)
  * - Derived positions (current exercise index)
  * - Optimistic UI states (pending toggles)
+ * 
+ * PERFORMANCE: Uses Zustand persist to survive page navigations.
+ * This prevents full refetches when user navigates to /routines and back.
  */
 
 export type WorkoutStage =
@@ -79,99 +83,117 @@ const initialState = {
     workoutStartTime: null,
 };
 
-export const useWorkoutUIStore = create<WorkoutUIState>()((set, get) => ({
-    ...initialState,
+export const useWorkoutUIStore = create<WorkoutUIState>()(
+    persist(
+        (set, get) => ({
+            ...initialState,
 
-    setStage: (stage) => set({ stage }),
+            setStage: (stage) => set({ stage }),
 
-    selectRoutine: (routine) => set({
-        selectedRoutineId: routine.id,
-        selectedRoutine: routine,
-        stage: 'pre-workout',
-    }),
+            selectRoutine: (routine) => set({
+                selectedRoutineId: routine.id,
+                selectedRoutine: routine,
+                stage: 'pre-workout',
+            }),
 
-    clearRoutineSelection: () => set({
-        selectedRoutineId: null,
-        selectedRoutine: null,
-        stage: 'select',
-    }),
+            clearRoutineSelection: () => set({
+                selectedRoutineId: null,
+                selectedRoutine: null,
+                stage: 'select',
+            }),
 
-    startSession: (sessionId, warmupData) => {
-        const completedIds = new Set<string>(
-            warmupData?.progress
-                ?.filter((log: any) => log.completed)
-                .map((log: any) => log.warmupChecklistId) || []
-        );
+            startSession: (sessionId, warmupData) => {
+                const completedIds = new Set<string>(
+                    warmupData?.progress
+                        ?.filter((log: any) => log.completed)
+                        .map((log: any) => log.warmupChecklistId) || []
+                );
 
-        set({
-            sessionId,
-            stage: 'warmup',
-            workoutStartTime: new Date(),
-            warmupItemsCompleted: completedIds,
-        });
-    },
+                set({
+                    sessionId,
+                    stage: 'warmup',
+                    workoutStartTime: new Date(),
+                    warmupItemsCompleted: completedIds,
+                });
+            },
 
-    toggleWarmupItem: (itemId) => set((state) => {
-        const newCompleted = new Set(state.warmupItemsCompleted);
-        if (newCompleted.has(itemId)) {
-            newCompleted.delete(itemId);
-        } else {
-            newCompleted.add(itemId);
+            toggleWarmupItem: (itemId) => set((state) => {
+                const newCompleted = new Set(state.warmupItemsCompleted);
+                if (newCompleted.has(itemId)) {
+                    newCompleted.delete(itemId);
+                } else {
+                    newCompleted.add(itemId);
+                }
+                return { warmupItemsCompleted: newCompleted };
+            }),
+
+            initWarmupProgress: (completedIds) => set({
+                warmupItemsCompleted: new Set(completedIds),
+            }),
+
+            completeWarmup: () => set({
+                stage: 'exercise',
+                currentExerciseIndex: 0,
+            }),
+
+            advanceExercise: () => set((state) => ({
+                currentExerciseIndex: state.currentExerciseIndex + 1,
+            })),
+
+            goToExercise: (index) => set({ currentExerciseIndex: index }),
+
+            incrementSetsLogged: (count = 1) => set((state) => ({
+                setsLoggedCount: state.setsLoggedCount + count,
+            })),
+
+            setShowResumeModal: (show) => set({ showResumeModal: show }),
+
+            setShowExitConfirm: (show) => set({ showExitConfirm: show }),
+
+            reset: () => set(initialState),
+
+            hydrateFromSession: (session) => {
+                if (!session) {
+                    set({ stage: 'select', sessionId: null });
+                    return;
+                }
+
+                // Determine stage based on session state
+                let stage: WorkoutStage = 'select';
+                if (session.warmupCompleted) {
+                    stage = 'exercise';
+                } else {
+                    stage = 'warmup';
+                }
+
+                // Get completed warmup items from session
+                const completedIds = new Set<string>(
+                    session.warmupLogs
+                        ?.filter((log: any) => log.completed)
+                        .map((log: any) => log.warmupChecklistId) || []
+                );
+
+                set({
+                    sessionId: session.id,
+                    stage,
+                    warmupItemsCompleted: completedIds,
+                    currentExerciseIndex: 0, // Could be smarter based on completed exercises
+                });
+            },
+        }),
+        {
+            name: 'body-os-workout-ui',
+            // Only persist essential data to survive navigations
+            partialize: (state) => ({
+                sessionId: state.sessionId,
+                stage: state.stage,
+                currentExerciseIndex: state.currentExerciseIndex,
+                selectedRoutineId: state.selectedRoutineId,
+                selectedRoutine: state.selectedRoutine,
+                setsLoggedCount: state.setsLoggedCount,
+                // Note: warmupItemsCompleted is a Set, can't serialize directly
+                // It will be rehydrated from server on resume
+            }),
         }
-        return { warmupItemsCompleted: newCompleted };
-    }),
-
-    initWarmupProgress: (completedIds) => set({
-        warmupItemsCompleted: new Set(completedIds),
-    }),
-
-    completeWarmup: () => set({
-        stage: 'exercise',
-        currentExerciseIndex: 0,
-    }),
-
-    advanceExercise: () => set((state) => ({
-        currentExerciseIndex: state.currentExerciseIndex + 1,
-    })),
-
-    goToExercise: (index) => set({ currentExerciseIndex: index }),
-
-    incrementSetsLogged: (count = 1) => set((state) => ({
-        setsLoggedCount: state.setsLoggedCount + count,
-    })),
-
-    setShowResumeModal: (show) => set({ showResumeModal: show }),
-
-    setShowExitConfirm: (show) => set({ showExitConfirm: show }),
-
-    reset: () => set(initialState),
-
-    hydrateFromSession: (session) => {
-        if (!session) {
-            set({ stage: 'select', sessionId: null });
-            return;
-        }
-
-        // Determine stage based on session state
-        let stage: WorkoutStage = 'select';
-        if (session.warmupCompleted) {
-            stage = 'exercise';
-        } else {
-            stage = 'warmup';
-        }
-
-        // Get completed warmup items from session
-        const completedIds = new Set<string>(
-            session.warmupLogs
-                ?.filter((log: any) => log.completed)
-                .map((log: any) => log.warmupChecklistId) || []
-        );
-
-        set({
-            sessionId: session.id,
-            stage,
-            warmupItemsCompleted: completedIds,
-            currentExerciseIndex: 0, // Could be smarter based on completed exercises
-        });
-    },
-}));
+    )
+);

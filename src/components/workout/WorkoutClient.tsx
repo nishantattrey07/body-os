@@ -15,6 +15,7 @@ import { ResumeModal } from "@/components/workout/ResumeModal";
 import { WarmupGate } from "@/components/workout/WarmupGate";
 import { useStartWorkoutSession } from "@/hooks/mutations/useStartWorkoutSession";
 import { useNavigation } from "@/providers/NavigationProvider";
+import { useRoutinesStore } from "@/store/routines-store";
 import { useWorkoutUIStore } from "@/store/workout-ui-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Dumbbell, Search, X } from "lucide-react";
@@ -22,26 +23,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type FilterType = "all" | "system" | "user";
 
-interface WorkoutClientProps {
-  initialSession: any | null;
-  initialRoutines: any[];
-  initialHasMore: boolean;
-  initialCursor: string | null;
-}
-
 /**
  * WorkoutClient - Client Component for workout flow
  * 
- * Receives initial data from Server Component (no loading skeleton needed).
- * Uses Zustand for UI state and React Query mutations for server sync.
+ * OFFLINE-FIRST: Reads routines instantly from Zustand store (localStorage).
+ * Background syncs active session with server.
  */
-export function WorkoutClient({
-  initialSession,
-  initialRoutines,
-  initialHasMore,
-  initialCursor,
-}: WorkoutClientProps) {
+export function WorkoutClient() {
   const { navigateTo, navigateBack } = useNavigation();
+  
+  // Zustand store for routines (instant from localStorage)
+  const { routines: cachedRoutines } = useRoutinesStore();
 
   // Zustand store for UI state
   const {
@@ -66,8 +58,8 @@ export function WorkoutClient({
   } = useWorkoutUIStore();
 
   // Local state for data that needs pagination/search
-  const [routines, setRoutines] = useState(initialRoutines);
-  const [activeSession, setActiveSession] = useState(initialSession);
+  const [routines, setRoutines] = useState(cachedRoutines); // Initialize from cache
+  const [activeSession, setActiveSession] = useState<any>(null);
   const [warmupData, setWarmupData] = useState<any>(null);
   const [pendingRoutine, setPendingRoutine] = useState<any>(null);
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
@@ -78,8 +70,8 @@ export function WorkoutClient({
   const [filter, setFilter] = useState<FilterType>("all");
 
   // Pagination State
-  const [cursor, setCursor] = useState<string | null>(initialCursor);
-  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -88,15 +80,18 @@ export function WorkoutClient({
 
   // Mutation hooks
   const startWorkoutMutation = useStartWorkoutSession();
-
-  // Hydrate store on mount
+  
+  // Background sync active session (non-blocking)
   useEffect(() => {
-    if (initialSession) {
-      hydrateFromSession(initialSession);
-      setShowResumeModal(true);
-    } else {
-      setStage('select');
-    }
+    getActiveSession().then(session => {
+      if (session) {
+        setActiveSession(session);
+        hydrateFromSession(session);
+        setShowResumeModal(true);
+      } else {
+        setStage('select');
+      }
+    });
   }, []);
 
   // Track scroll position
@@ -213,14 +208,18 @@ export function WorkoutClient({
     if (currentExerciseIndex < exercises.length - 1) {
       advanceExercise();
     } else {
-      // Workout complete - refresh session for accurate activeSeconds
-      if (activeSession) {
-        const refreshedSession = await getActiveSession();
-        if (refreshedSession) {
-          setActiveSession(refreshedSession);
-        }
-      }
+      // Workout complete - transition UI immediately (non-blocking)
       setStage('post-workout');
+      
+      // Refresh session in background for accurate activeSeconds (non-blocking)
+      // This runs after UI has already transitioned, so user doesn't wait
+      if (activeSession) {
+        getActiveSession().then(refreshedSession => {
+          if (refreshedSession) {
+            setActiveSession(refreshedSession);
+          }
+        });
+      }
     }
   };
 
@@ -537,7 +536,7 @@ export function WorkoutClient({
                             <p className="text-sm text-zinc-500 mt-1 truncate">{routine.description}</p>
                           )}
                           <p className="text-xs text-zinc-400 mt-2">
-                            {routine.exercises?.length || routine._count?.exercises || 0} exercises
+                            {routine.exercises?.length || 0} exercises
                           </p>
                         </div>
                       </div>

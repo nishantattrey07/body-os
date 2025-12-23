@@ -6,33 +6,41 @@ import { MacroGauge } from "@/components/dashboard/MacroGauge";
 import { MorningCheckIn } from "@/components/dashboard/MorningCheckIn";
 import { StatusIndicator } from "@/components/dashboard/StatusIndicator";
 import { WaterTracker } from "@/components/dashboard/WaterTracker";
-import { DailyLog, useDailyLog } from "@/hooks/queries/useDailyLog";
-import { UserSettings, useUserSettings } from "@/hooks/queries/useUserSettings";
+import { useDailyLog } from "@/hooks/queries/useDailyLog";
+import { useUserSettings } from "@/hooks/queries/useUserSettings";
 import { isPastDayCutoff } from "@/lib/date-utils";
 import { useNavigation } from "@/providers/NavigationProvider";
+import { useDailyLogStore } from "@/store/daily-log-store";
 import { AnimatePresence, motion } from "framer-motion";
 import { Dumbbell, Settings, TrendingUp, Utensils } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-interface DashboardClientProps {
-  initialDailyLog?: DailyLog | null;
-  initialSettings?: UserSettings;
-}
-
 /**
  * DashboardClient - Client Component for dashboard
  * 
- * Receives initial data from Server Component.
- * Uses React Query hooks with initialData for instant render.
+ * OFFLINE-FIRST: Reads from Zustand store (backed by localStorage) for instant load.
+ * Background syncs with server to keep data fresh.
  */
-export function DashboardClient({ initialDailyLog, initialSettings }: DashboardClientProps) {
+export function DashboardClient() {
   const router = useRouter();
   const { navigateTo } = useNavigation();
   
-  // React Query hooks - with initialData from server!
-  const { data: dailyLog, isLoading: logLoading, refetch: refetchLog } = useDailyLog(initialDailyLog);
-  const { data: settings, isLoading: settingsLoading } = useUserSettings(initialSettings);
+  // Get cached daily log from Zustand store (instant from localStorage)
+  const today = new Date().toISOString().split('T')[0];
+  const { getLogByDate, setLog: setLogInStore } = useDailyLogStore();
+  const cachedLog = getLogByDate(today);
+  
+  // React Query hooks - with initialData from Zustand cache!
+  const { data: dailyLog, isLoading: logLoading, refetch: refetchLog } = useDailyLog(cachedLog);
+  const { data: settings, isLoading: settingsLoading } = useUserSettings();
+  
+  // Background sync: Update Zust and store when fresh data arrives
+  useEffect(() => {
+    if (dailyLog && dailyLog.id) {
+      setLogInStore(today, dailyLog);
+    }
+  }, [dailyLog, today, setLogInStore]);
 
   // Derived values with defaults
   const cutoffHour = settings?.dayCutoffHour ?? 5;
@@ -48,19 +56,19 @@ export function DashboardClient({ initialDailyLog, initialSettings }: DashboardC
   
   // Initialize check-in state once data is loaded
   useEffect(() => {
-    // With initialData, we can compute this immediately
-    if (needsCheckIn === null && (initialDailyLog !== undefined || !logLoading)) {
+    // With cached data, we can compute this immediately
+    if (needsCheckIn === null && !logLoading) {
       setNeedsCheckIn(!hasCompletedCheckIn && isPastCutoff);
     }
-  }, [logLoading, hasCompletedCheckIn, isPastCutoff, needsCheckIn, initialDailyLog]);
+  }, [logLoading, hasCompletedCheckIn, isPastCutoff, needsCheckIn]);
 
   const handleCheckInComplete = async () => {
     setNeedsCheckIn(false);
     await refetchLog();
   };
 
-  // Loading state - only if no initial data was provided
-  if ((logLoading && !initialDailyLog) || (settingsLoading && !initialSettings) || needsCheckIn === null) {
+  // Loading state - only on first load without cached data
+  if ((logLoading && !cachedLog) || settingsLoading || needsCheckIn === null) {
     return <DashboardSkeleton />;
   }
 

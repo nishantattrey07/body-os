@@ -7,6 +7,8 @@ export interface DailyLog {
     date: Date | string;
     weight: number | null;
     sleepHours: number | null;
+    sleepQuality: number | null;
+    mood: string | null;
     bloated: boolean;
     proteinTotal: number;
     carbsTotal: number;
